@@ -37,8 +37,9 @@ func main() {
 	router.GET("/spotify-auth", spotifyCallback)
 
 	// Data endpoints
-	router.GET("/toptracks", getLastFmTopTracksMonth)
+	router.GET("/toptracks", handleTopTracks)
 	router.GET("/playlists", getSpotifyPlaylists)
+	router.GET("/sync", sync)
 
 	router.Run("localhost:8000")
 }
@@ -97,7 +98,7 @@ func spotifyCallback(c *gin.Context) {
 	}
 	log.Info("Spotify code", "code", spotifyCallbackData.Code)
 
-	var authData spotifyApi.AuthData
+	var authData config.SpotifyAuthData
 
 	err = spotifyApi.Authorize(&authData, spotifyCallbackData.Code)
 	if err != nil {
@@ -151,21 +152,8 @@ func getPing(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, "PONG")
 }
 
-func getLastFmTopTracksMonth(c *gin.Context) {
-	// var topTracksData interface{}
-	var topTracksData lastFmApi.TopTracks
-
-	params := map[string]string{
-		"method": "user.getTopTracks",
-		"user":   "fuzzycut1",
-		"period": "1month",
-		"limit":  "2",
-	}
-
-	err := lastFmApi.Get(
-		&topTracksData,
-		params,
-	)
+func handleTopTracks(c *gin.Context) {
+	topTracksData, err := getLastFmTopTracksMonth()
 	if err != nil {
 		log.Error("Unable to fetch from last fm api", "error", err)
 		c.String(http.StatusInternalServerError, "Failed to fetch from lastfm")
@@ -173,35 +161,73 @@ func getLastFmTopTracksMonth(c *gin.Context) {
 	}
 
 	log.Info("lastfm data", "data", topTracksData)
+	pretty, err := PrettyStruct(topTracksData)
+	if err != nil {
+		return
+	}
+	log.Info("pretty json", "pretty", pretty)
 }
 
 func getSpotifyPlaylists(c *gin.Context) {
-	conf, err := config.LoadConfig(false)
-	if err != nil {
-		log.Error("Error fetching config", "error", err)
-		c.String(http.StatusInternalServerError, "Error getting spotify playlists")
-		return
-	}
-
 	// Grab a new access token and update the config with the new values
-	err = spotifyApi.GetAuth(&conf.Spotify)
+	authData, err := spotifyApi.GetAuth()
 	if err != nil {
 		log.Error("Error fetching config", "error", err)
 		c.String(http.StatusInternalServerError, "Error getting spotify playlists")
 		return
 	}
-	log.Info("New spotify tokens", "tokens", conf.Spotify)
-	config.WriteConfig(conf)
+	log.Info("New spotify tokens", "tokens", authData)
 
 	type Playlists struct {
 		Total int `json:"total"`
 	}
 
 	var playlistsData Playlists
-	// spotifyApi.Get(&playlistsData, "/me/playlists", conf.Spotify.AccessToken, map[string]string{})
-	spotifyApi.Get(&playlistsData, "/me/playlists", conf.Spotify.AccessToken, nil)
+	spotifyApi.Get(&playlistsData, "/me/playlists", nil)
 
 	log.Info("Playlist data", "data", playlistsData)
+}
+
+func sync(c *gin.Context) {
+	topTracksData, err := getLastFmTopTracksMonth()
+	if err != nil {
+		log.Error("Unable to fetch from last fm api", "error", err)
+		c.String(http.StatusInternalServerError, "Failed to fetch from lastfm")
+		return
+	}
+
+	// Create a new playlist
+
+	// Iterate and search for each track
+	// TODO: concurrently?
+	for _, v := range topTracksData.Toptracks.Track {
+		trackName := v.Name
+		artistName := v.Artist.Name
+		log.Info("track data", "name", trackName, "artist", artistName)
+
+		var searchData spotifyApi.Search
+		spotifyApi.Get(&searchData, "/search", nil)
+	}
+
+	// Add the tracks to the new playlist by uri
+}
+
+func getLastFmTopTracksMonth() (lastFmApi.TopTracks, error) {
+	var topTracksData lastFmApi.TopTracks
+
+	params := map[string]string{
+		"method": "user.getTopTracks",
+		"user":   "fuzzycut1",
+		"period": "1month",
+		"limit":  "1",
+	}
+
+	err := lastFmApi.Get(
+		&topTracksData,
+		params,
+	)
+
+	return topTracksData, err
 }
 
 // Pretty print a struct

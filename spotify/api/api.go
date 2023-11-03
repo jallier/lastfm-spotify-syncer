@@ -5,24 +5,20 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"example/lastfm-spotify-syncer/config"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/log"
 )
 
 const SPOTIFY_API_URL = "https://api.spotify.com/v1"
 
-type AuthData struct {
-	AccessToken  string `json:"access_token"`
-	ExpiresIn    int    `json:"expires_in"`
-	RefreshToken string `json:"refresh_token"`
-}
-
-func Authorize(authData *AuthData, code string) error {
+func Authorize(authData *config.SpotifyAuthData, code string) error {
 	clientID := os.Getenv("SPOTIFY_CLIENT_ID")
 	clientSecret := os.Getenv("SPOTIFY_CLIENT_SECRET")
 	redirectURI := "http://localhost:8000/spotify-auth"
@@ -64,12 +60,36 @@ func Authorize(authData *AuthData, code string) error {
 	return json.NewDecoder(resp.Body).Decode(&authData)
 }
 
-func GetAuth(authData *AuthData) error {
-	// TODO: add some checks around the expiry time
-	return refreshToken(authData)
+func GetAuth() (*config.SpotifyAuthData, error) {
+	conf, err := config.LoadConfig(false)
+	if err != nil {
+		log.Error("Error fetching config", "error", err)
+		return nil, err
+	}
+
+	// No need to refresh the token if it hasn't expired
+	expired := conf.Spotify.ExpiresAt.Before(time.Now())
+	if !expired {
+		return &conf.Spotify, nil
+	}
+
+	err = refreshToken(&conf.Spotify)
+	if err != nil {
+		log.Error("Error refreshing token")
+		return nil, err
+	}
+
+	// Set the expiry time
+	expiresIn := time.Duration(conf.Spotify.ExpiresIn) * time.Second
+	expiresAt := time.Now().Add(expiresIn)
+	conf.Spotify.ExpiresAt = expiresAt
+
+	config.WriteConfig(conf)
+
+	return &conf.Spotify, nil
 }
 
-func refreshToken(authData *AuthData) error {
+func refreshToken(authData *config.SpotifyAuthData) error {
 	clientID := os.Getenv("SPOTIFY_CLIENT_ID")
 	clientSecret := os.Getenv("SPOTIFY_CLIENT_SECRET")
 	refreshToken := authData.RefreshToken
@@ -116,7 +136,13 @@ func refreshToken(authData *AuthData) error {
 	return json.NewDecoder(resp.Body).Decode(&authData)
 }
 
-func Get[T any](data *T, endpoint string, accessToken string, params map[string]string) error {
+func Get[T any](data *T, endpoint string, params map[string]string) error {
+	// Get the access token
+	authData, err := GetAuth()
+	if err != nil {
+		log.Error("Error loading config", "error", err)
+		return err
+	}
 	// Create the full endpoint
 	completeEndpoint := SPOTIFY_API_URL + endpoint
 
@@ -140,7 +166,7 @@ func Get[T any](data *T, endpoint string, accessToken string, params map[string]
 	}
 
 	// Set the User-Agent header
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Authorization", "Bearer "+authData.AccessToken)
 
 	// Make the HTTP request
 	client := &http.Client{}

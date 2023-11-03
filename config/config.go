@@ -2,20 +2,22 @@ package config
 
 import (
 	"encoding/json"
-	spotifyApi "example/lastfm-spotify-syncer/spotify/api"
 	"os"
+	"time"
 
 	"github.com/charmbracelet/log"
 )
 
+type SpotifyAuthData struct {
+	AccessToken  string    `json:"access_token"`
+	RefreshToken string    `json:"refresh_token"`
+	ExpiresIn    int       `json:"expires_in"`
+	ExpiresAt    time.Time `json:"expires_at"`
+}
+
 type Config struct {
-	LastFM string `json:"last_fm"`
-	// Spotify struct {
-	// 	AccessToken  string `json:"access_token"`
-	// 	ExpiresIn    int    `json:"expires_in"`
-	// 	RefreshToken string `json:"refresh_token"`
-	// } `json:"spotify"`
-	Spotify spotifyApi.AuthData `json:"spotify"`
+	LastFM  string          `json:"last_fm"`
+	Spotify SpotifyAuthData `json:"spotify"`
 }
 
 const FILENAME = "tokens.json"
