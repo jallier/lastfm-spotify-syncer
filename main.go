@@ -1,11 +1,10 @@
 package main
 
 import (
-	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"example/lastfm-spotify-syncer/config"
 	lastFmApi "example/lastfm-spotify-syncer/lastfm/api"
+	spotifyApi "example/lastfm-spotify-syncer/spotify/api"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -39,6 +38,7 @@ func main() {
 
 	// Data endpoints
 	router.GET("/toptracks", getLastFmTopTracksMonth)
+	router.GET("/playlists", getSpotifyPlaylists)
 
 	router.Run("localhost:8000")
 }
@@ -97,56 +97,9 @@ func spotifyCallback(c *gin.Context) {
 	}
 	log.Info("Spotify code", "code", spotifyCallbackData.Code)
 
-	clientID := os.Getenv("SPOTIFY_CLIENT_ID")
-	clientSecret := os.Getenv("SPOTIFY_CLIENT_SECRET")
-	code := spotifyCallbackData.Code
-	redirectURI := "http://localhost:8000/spotify-auth"
+	var authData spotifyApi.AuthData
 
-	// Build the request data
-	data := url.Values{}
-	data.Set("code", code)
-	data.Set("redirect_uri", redirectURI)
-	data.Set("grant_type", "authorization_code")
-
-	// Create a basic authentication header
-	authHeader := base64.StdEncoding.EncodeToString([]byte(clientID + ":" + clientSecret))
-
-	// Create an HTTP request
-	req, err := http.NewRequest("POST", "https://accounts.spotify.com/api/token", bytes.NewBufferString(data.Encode()))
-	if err != nil {
-		log.Error("Error creating request:", "error", err)
-		c.String(http.StatusInternalServerError, "Failed to authorize with spotify")
-		return
-	}
-
-	req.Header.Set("Authorization", "Basic "+authHeader)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	// Make the HTTP request
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Error("Error making request:", "error", err)
-		c.String(http.StatusInternalServerError, "Failed to authorize with spotify")
-		return
-	}
-	defer resp.Body.Close()
-
-	// Check the response
-	if resp.Status != "200 OK" {
-		log.Error("Error: HTTP Status", "status", resp.Status)
-		c.String(http.StatusInternalServerError, "Failed to authorize with spotify")
-		return
-	}
-
-	type AuthData struct {
-		AccessToken  string `json:"access_token"`
-		ExpiresIn    int    `json:"expires_in"`
-		RefreshToken string `json:"refresh_token"`
-	}
-	var authData AuthData
-
-	err = json.NewDecoder(resp.Body).Decode(&authData)
+	err = spotifyApi.Authorize(&authData, spotifyCallbackData.Code)
 	if err != nil {
 		log.Error("Error parsing json", "error", err)
 		c.String(http.StatusInternalServerError, "Error parsing spotify json")
@@ -220,6 +173,35 @@ func getLastFmTopTracksMonth(c *gin.Context) {
 	}
 
 	log.Info("lastfm data", "data", topTracksData)
+}
+
+func getSpotifyPlaylists(c *gin.Context) {
+	conf, err := config.LoadConfig(false)
+	if err != nil {
+		log.Error("Error fetching config", "error", err)
+		c.String(http.StatusInternalServerError, "Error getting spotify playlists")
+		return
+	}
+
+	// Grab a new access token and update the config with the new values
+	err = spotifyApi.GetAuth(&conf.Spotify)
+	if err != nil {
+		log.Error("Error fetching config", "error", err)
+		c.String(http.StatusInternalServerError, "Error getting spotify playlists")
+		return
+	}
+	log.Info("New spotify tokens", "tokens", conf.Spotify)
+	config.WriteConfig(conf)
+
+	type Playlists struct {
+		Total int `json:"total"`
+	}
+
+	var playlistsData Playlists
+	// spotifyApi.Get(&playlistsData, "/me/playlists", conf.Spotify.AccessToken, map[string]string{})
+	spotifyApi.Get(&playlistsData, "/me/playlists", conf.Spotify.AccessToken, nil)
+
+	log.Info("Playlist data", "data", playlistsData)
 }
 
 // Pretty print a struct
