@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -89,7 +90,6 @@ func Get[T any](data *T, params map[string]string) error {
 
 	// Add format afterwards for some unknown reason...
 	queryParams.Add("format", "json")
-	// queryParams.Add("api_sig", hashedSignature)
 
 	// Encode the query parameters into a URL-encoded string
 	query := queryParams.Encode()
@@ -120,8 +120,19 @@ func Get[T any](data *T, params map[string]string) error {
 		log.Warn("failed", "error code", resp.StatusCode)
 	}
 
+	// DEBUGGING
+	data2, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Error("error reading debug data", "error", err)
+		return err
+	}
+	log.Info("raw response", "data", string(data2))
+
 	// Decode the JSON response into the map
-	return json.NewDecoder(resp.Body).Decode(&data)
+	return json.Unmarshal(data2, &data)
+	// END DEBUGGING
+
+	// return json.NewDecoder(resp.Body).Decode(&data)
 }
 
 func getSortedMapKV(data url.Values) string {

@@ -185,3 +185,50 @@ func Get[T any](data *T, endpoint string, params map[string]string) error {
 	// Decode the JSON response into the map
 	return json.NewDecoder(resp.Body).Decode(&data)
 }
+
+func Post[T any, B any](data *T, endpoint string, body *B) error {
+	// Get the access token
+	authData, err := GetAuth()
+	if err != nil {
+		log.Error("Error loading config", "error", err)
+		return err
+	}
+	// Create the full endpoint
+	completeEndpoint := SPOTIFY_API_URL + endpoint
+
+	// Build the complete URL
+	log.Info("full URL", "url", completeEndpoint)
+
+	// marshall the body
+	jsonData, err := json.Marshal(body)
+	if err != nil {
+		log.Error("error marshalling JSON", "error", err)
+		return err
+	}
+
+	req, err := http.NewRequest("POST", completeEndpoint, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+
+	// Set the User-Agent header
+	req.Header.Set("Authorization", "Bearer "+authData.AccessToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Make the HTTP request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Error("Error making the request:", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Check the response status code
+	if resp.StatusCode != http.StatusCreated {
+		log.Warn("failed", "error code", resp.StatusCode)
+	}
+
+	// Decode the JSON response into the map
+	return json.NewDecoder(resp.Body).Decode(&data)
+}

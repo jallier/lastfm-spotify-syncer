@@ -195,8 +195,14 @@ func sync(c *gin.Context) {
 		c.String(http.StatusInternalServerError, "Failed to fetch from lastfm")
 		return
 	}
+	spotifyUserData, err := getSpotifyUser()
+	if err != nil {
+		log.Error("Unable to fetch from spotify api", "error", err)
+		c.String(http.StatusInternalServerError, "Failed to fetch from spotify")
+		return
+	}
 
-	// Create a new playlist
+	var trackIds []string
 
 	// Iterate and search for each track
 	// TODO: concurrently?
@@ -206,10 +212,85 @@ func sync(c *gin.Context) {
 		log.Info("track data", "name", trackName, "artist", artistName)
 
 		var searchData spotifyApi.Search
-		spotifyApi.Get(&searchData, "/search", nil)
+		searchQuery := fmt.Sprintf("artist: \"%s\" track: \"%s\"", artistName, trackName)
+		err := spotifyApi.Get(&searchData, "/search", map[string]string{
+			"q":     searchQuery,
+			"type":  "track",
+			"limit": "1",
+		})
+
+		if err != nil {
+			log.Error("error searching spotify", "error", err)
+			c.String(http.StatusInternalServerError, "Failed to search spotify")
+			return
+		}
+
+		trackIds = append(trackIds, searchData.Tracks.Items[0].ID)
 	}
+	log.Info("track ids", "ids", trackIds)
+
+	// Create a new playlist
+	playlistData, err := createSpotifyPlaylist(spotifyUserData.ID)
+	if err != nil {
+		log.Error("error creating playlist", "error", err)
+		c.String(http.StatusInternalServerError, "Failed to create spotify playlist")
+		return
+	}
+	log.Info("created playlist", "playlist", playlistData)
 
 	// Add the tracks to the new playlist by uri
+	_, err = addItemsToSpotifyPlaylist(playlistData.ID, trackIds)
+	if err != nil {
+		log.Error("error adding items to playlist playlist", "error", err)
+		c.String(http.StatusInternalServerError, "Failed to update spotify playlist")
+		return // TODO: try delete the blank playlist here
+	}
+
+	log.Info("Populated playlist!")
+	c.String(http.StatusOK, "Spotify playlist created!")
+}
+
+func addItemsToSpotifyPlaylist(playlistId string, trackIds []string) (spotifyApi.AddPlaylistTracks, error) {
+	var playlistSnapshot spotifyApi.AddPlaylistTracks
+
+	formattedTracks := make([]string, len(trackIds))
+	for i, v := range trackIds {
+		formattedTracks[i] = "spotify:track:" + v
+	}
+
+	url := fmt.Sprintf("/playlists/%s/tracks", playlistId)
+	body := spotifyApi.AddPlaylistTracksData{
+		Uris: formattedTracks,
+	}
+	err := spotifyApi.Post(&playlistSnapshot, url, &body)
+
+	return playlistSnapshot, err
+}
+
+func createSpotifyPlaylist(userId string) (spotifyApi.CreatePlaylist, error) {
+	currentTime := time.Now()
+	firstDayOfCurrentMonth := time.Date(currentTime.Year(), currentTime.Month(), 1, 0, 0, 0, 0, currentTime.Location())
+	lastDayOfPreviousMonth := firstDayOfCurrentMonth.Add(-time.Second)
+	previousMonth := lastDayOfPreviousMonth.Month()
+	year := lastDayOfPreviousMonth.Year()
+
+	var playlistData spotifyApi.CreatePlaylist
+
+	url := fmt.Sprintf("/users/%s/playlists", userId)
+	body := spotifyApi.CreatePlaylistData{
+		Name: fmt.Sprintf("LastFM Top Tracks: %s %d", previousMonth, year),
+	}
+	err := spotifyApi.Post(&playlistData, url, &body)
+
+	return playlistData, err
+}
+
+func getSpotifyUser() (spotifyApi.User, error) {
+	var userData spotifyApi.User
+
+	err := spotifyApi.Get(&userData, "/me", nil)
+
+	return userData, err
 }
 
 func getLastFmTopTracksMonth() (lastFmApi.TopTracks, error) {
@@ -219,7 +300,7 @@ func getLastFmTopTracksMonth() (lastFmApi.TopTracks, error) {
 		"method": "user.getTopTracks",
 		"user":   "fuzzycut1",
 		"period": "1month",
-		"limit":  "1",
+		"limit":  "10",
 	}
 
 	err := lastFmApi.Get(
