@@ -16,8 +16,13 @@ type SpotifyAuthData struct {
 }
 
 type Config struct {
-	LastFM  string          `json:"last_fm"`
-	Spotify SpotifyAuthData `json:"spotify"`
+	Auth struct {
+		LastFM  string          `json:"last_fm"`
+		Spotify SpotifyAuthData `json:"spotify"`
+	} `json:"auth"`
+	Config struct {
+		Sync bool `json:"sync"`
+	} `json:"config"`
 }
 
 const FILENAME = "tokens.json"
@@ -59,12 +64,12 @@ func readConfigFile(filename string) (*Config, error) {
 	return &config, nil
 }
 
-func WriteConfig(data *Config) {
+func WriteConfig(data *Config) error {
 	// Create or open a file for writing.
 	file, err := os.Create(FILENAME)
 	if err != nil {
 		log.Error("Error creating file", "error", err)
-		return
+		return err
 	}
 	defer file.Close() // Ensure the file is closed when we're done.
 
@@ -73,8 +78,9 @@ func WriteConfig(data *Config) {
 	err = encoder.Encode(data)
 	if err != nil {
 		log.Error("Error encoding JSON:", "error", err)
-		return
+		return err
 	}
 
 	log.Info("JSON data written to " + FILENAME)
+	return nil
 }

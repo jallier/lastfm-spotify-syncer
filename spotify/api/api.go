@@ -68,25 +68,25 @@ func GetAuth() (*config.SpotifyAuthData, error) {
 	}
 
 	// No need to refresh the token if it hasn't expired
-	expired := conf.Spotify.ExpiresAt.Before(time.Now())
+	expired := conf.Auth.Spotify.ExpiresAt.Before(time.Now())
 	if !expired {
-		return &conf.Spotify, nil
+		return &conf.Auth.Spotify, nil
 	}
 
-	err = refreshToken(&conf.Spotify)
+	err = refreshToken(&conf.Auth.Spotify)
 	if err != nil {
 		log.Error("Error refreshing token")
 		return nil, err
 	}
 
 	// Set the expiry time
-	expiresIn := time.Duration(conf.Spotify.ExpiresIn) * time.Second
+	expiresIn := time.Duration(conf.Auth.Spotify.ExpiresIn) * time.Second
 	expiresAt := time.Now().Add(expiresIn)
-	conf.Spotify.ExpiresAt = expiresAt
+	conf.Auth.Spotify.ExpiresAt = expiresAt
 
 	config.WriteConfig(conf)
 
-	return &conf.Spotify, nil
+	return &conf.Auth.Spotify, nil
 }
 
 func refreshToken(authData *config.SpotifyAuthData) error {

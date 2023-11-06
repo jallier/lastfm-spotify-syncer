@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"example/lastfm-spotify-syncer/config"
 	lastFmApi "example/lastfm-spotify-syncer/lastfm/api"
+	"example/lastfm-spotify-syncer/scheduler"
 	spotifyApi "example/lastfm-spotify-syncer/spotify/api"
 	"fmt"
 	"math/rand"
@@ -23,15 +24,27 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
+	// setup the scheduler
+	s := scheduler.GetScheduler()
+	s.WaitForScheduleAll()
+	_, err = s.Every(1).Minutes().Do(func() {
+		log.Info("Scheduler runs")
+	})
+	if err != nil {
+		log.Error("Error scheduling job", "error", err)
+	}
+
 	// Load the config file here
-	config.LoadConfig(false)
+	conf, err := config.LoadConfig(false)
+	if err != nil {
+		log.Fatal("Cannot load config", "error", err)
+	}
 
 	router := gin.Default()
 	router.GET("/ping", getPing)
 
 	// Endpoint to send links user needs to follow to auth with both services
 	router.GET("/authenticate", authenticate)
-
 	// Endpoints to handle oauth callbacks
 	router.GET("/lastfm-auth", lastFmCallback)
 	router.GET("/spotify-auth", spotifyCallback)
@@ -41,7 +54,53 @@ func main() {
 	router.GET("/playlists", getSpotifyPlaylists)
 	router.GET("/sync", sync)
 
+	// admin endpoints
+	router.GET("/set-sync", setSync)
+
+	if conf.Config.Sync {
+		s.StartAsync()
+		log.Info("sync started")
+	} else {
+		log.Info("sync not enabled")
+	}
+
 	router.Run("localhost:8000")
+}
+
+type SetSyncData struct {
+	Sync bool `form:"sync"`
+}
+
+func setSync(c *gin.Context) {
+	var setSyncData SetSyncData
+	err := c.ShouldBindQuery(&setSyncData)
+	if err != nil {
+		log.Error("loading query string", "error", err)
+		c.String(http.StatusInternalServerError, "Error loading query string")
+		return
+	}
+
+	conf, err := config.LoadConfig(false)
+	if err != nil {
+		log.Error("error loading config", "error", err)
+		c.String(http.StatusInternalServerError, "Error loading config file")
+		return
+	}
+
+	conf.Config.Sync = setSyncData.Sync
+	config.WriteConfig(conf)
+
+	s := scheduler.GetScheduler()
+	if setSyncData.Sync {
+		s.StartAsync()
+		log.Info("sync started")
+		c.String(http.StatusOK, "Sync started")
+	} else {
+		s.Stop()
+		log.Info("sync stopped")
+		c.String(http.StatusOK, "Sync stopped")
+	}
+
 }
 
 type LastFmCallbackData struct {
@@ -76,7 +135,7 @@ func lastFmCallback(c *gin.Context) {
 		log.Error("Error reading config file", "error", err)
 		c.String(http.StatusInternalServerError, "Error reading config file")
 	}
-	conf.LastFM = data.Session.Key
+	conf.Auth.LastFM = data.Session.Key
 	config.WriteConfig(conf)
 
 	c.String(http.StatusOK, "success")
@@ -114,7 +173,7 @@ func spotifyCallback(c *gin.Context) {
 		c.String(http.StatusInternalServerError, "Error reading config file")
 		return
 	}
-	conf.Spotify = authData
+	conf.Auth.Spotify = authData
 	config.WriteConfig(conf)
 
 	c.String(http.StatusOK, "success")
