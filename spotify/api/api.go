@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -19,8 +18,13 @@ import (
 const SPOTIFY_API_URL = "https://api.spotify.com/v1"
 
 func Authorize(authData *config.SpotifyAuthData, code string) error {
-	clientID := os.Getenv("SPOTIFY_CLIENT_ID")
-	clientSecret := os.Getenv("SPOTIFY_CLIENT_SECRET")
+	conf, err := config.LoadConfig(false)
+	if err != nil {
+		log.Error("Error reading config file", "error", err)
+		return err
+	}
+	clientID := conf.Auth.Spotify.ClientId
+	clientSecret := conf.Auth.Spotify.ClientSecret
 	redirectURI := "http://localhost:8000/spotify-auth"
 
 	// Build the request data
@@ -90,8 +94,13 @@ func GetAuth() (*config.SpotifyAuthData, error) {
 }
 
 func refreshToken(authData *config.SpotifyAuthData) error {
-	clientID := os.Getenv("SPOTIFY_CLIENT_ID")
-	clientSecret := os.Getenv("SPOTIFY_CLIENT_SECRET")
+	conf, err := config.LoadConfig(false)
+	if err != nil {
+		log.Error("Error reading config file", "error", err)
+		return err
+	}
+	clientID := conf.Auth.Spotify.ClientId
+	clientSecret := conf.Auth.Spotify.ClientSecret
 	refreshToken := authData.RefreshToken
 
 	// Define the URL for the token endpoint

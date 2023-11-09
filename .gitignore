@@ -1,3 +1,5 @@
 /tmp
 .env
 tokens.json
+config.json
+.DS_Store

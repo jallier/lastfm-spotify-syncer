@@ -4,11 +4,11 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"example/lastfm-spotify-syncer/config"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"sort"
 
 	"github.com/charmbracelet/log"
@@ -27,7 +27,12 @@ type AuthData struct {
 // Hit the lastfm api to authorize the user
 // This will handle the hashing signature requirement
 func Authorize(authData *AuthData, token string) error {
-	lastFmApiKey := os.Getenv("LASTFM_API_KEY")
+	conf, err := config.LoadConfig(false)
+	if err != nil {
+		log.Error("Error reading config file", "error", err)
+		return err
+	}
+	lastFmApiKey := conf.Auth.LastFM.ApiKey
 
 	// Create a map of query parameters
 	queryParams := url.Values{}
@@ -36,7 +41,7 @@ func Authorize(authData *AuthData, token string) error {
 	queryParams.Add("method", "auth.getSession")
 
 	sortedParamString := getSortedMapKV(queryParams)
-	fullSigString := sortedParamString + os.Getenv("LASTFM_SHARED_SECRET")
+	fullSigString := sortedParamString + conf.Auth.LastFM.SharedSecret
 	hashedSignature := encodeLastFmCall(fullSigString)
 	log.Info("hashed signature", "sig", hashedSignature)
 
@@ -78,7 +83,12 @@ func Authorize(authData *AuthData, token string) error {
 }
 
 func Get[T any](data *T, params map[string]string) error {
-	lastFmApiKey := os.Getenv("LASTFM_API_KEY")
+	conf, err := config.LoadConfig(false)
+	if err != nil {
+		log.Error("Error reading config file", "error", err)
+		return err
+	}
+	lastFmApiKey := conf.Auth.LastFM.ApiKey
 
 	// Create a map of query parameters
 	queryParams := url.Values{}

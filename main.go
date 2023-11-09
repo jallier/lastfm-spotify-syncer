@@ -10,7 +10,6 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -54,14 +53,25 @@ func main() {
 
 	// HTML routes
 	router.GET("/", func(c *gin.Context) {
+		signedIn := false
+		// TODO: Need the client ids and secrets to be checked too?
+		if conf.Auth.LastFM.Token != "" && conf.Auth.Spotify.RefreshToken != "" {
+			signedIn = true
+		}
 		c.HTML(http.StatusOK, "index", gin.H{
-			"title":       "Test",
-			"lastFmToken": conf.Auth.LastFM,
+			"lastFmApiKey":        conf.Auth.LastFM.ApiKey,
+			"lastFmSharedSecret":  conf.Auth.LastFM.SharedSecret,
+			"spotifyClientId":     conf.Auth.Spotify.ClientId,
+			"spotifyClientSecret": conf.Auth.Spotify.ClientSecret,
+			"signedIn":            signedIn,
+			"sync":                conf.Config.Sync,
 		})
 	})
 
 	// Endpoint to send links user needs to follow to auth with both services
-	router.GET("/authenticate", authenticate)
+	router.GET("/authenticate-last-fm", authenticateLastFM)
+	router.GET("/authenticate-spotify", authenticateSpotify)
+
 	// Endpoints to handle oauth callbacks
 	router.GET("/lastfm-auth", lastFmCallback)
 	router.GET("/spotify-auth", spotifyCallback)
@@ -117,7 +127,6 @@ func setSync(c *gin.Context) {
 		log.Info("sync stopped")
 		c.String(http.StatusOK, "Sync stopped")
 	}
-
 }
 
 type LastFmCallbackData struct {
@@ -152,7 +161,7 @@ func lastFmCallback(c *gin.Context) {
 		log.Error("Error reading config file", "error", err)
 		c.String(http.StatusInternalServerError, "Error reading config file")
 	}
-	conf.Auth.LastFM = data.Session.Key
+	conf.Auth.LastFM.Token = data.Session.Key
 	config.WriteConfig(conf)
 
 	c.String(http.StatusOK, "success")
@@ -196,21 +205,32 @@ func spotifyCallback(c *gin.Context) {
 	c.String(http.StatusOK, "success")
 }
 
-func authenticate(c *gin.Context) {
-	lastFmApiKey := os.Getenv("LASTFM_API_KEY")
-	spotifyApiKey := os.Getenv("SPOTIFY_CLIENT_ID")
+func authenticateLastFM(c *gin.Context) {
+	conf, err := config.LoadConfig(false)
+	if err != nil {
+		log.Error("Error reading config file", "error", err)
+		c.String(http.StatusInternalServerError, "Error reading config file")
+		return
+	}
+	lastFmApiKey := conf.Auth.LastFM.ApiKey
+	link := "http://www.last.fm/api/auth/?api_key=" + lastFmApiKey
+	log.Info("Please follow this url to authenticate lastFM", "link", link)
+	c.Redirect(http.StatusFound, link)
+}
 
-	// TODO: these should just redirect the user to the services. But worry about that when there is a ui
-
-	// Last fm - ezpz
-	log.Info("Please follow this url to authenticate lastFM", "link", "http://www.last.fm/api/auth/?api_key="+lastFmApiKey)
-
-	// Spotify - gotta encode some stuff
+func authenticateSpotify(c *gin.Context) {
+	conf, err := config.LoadConfig(false)
+	if err != nil {
+		log.Error("Error reading config file", "error", err)
+		c.String(http.StatusInternalServerError, "Error reading config file")
+		return
+	}
+	spotifyClientId := conf.Auth.Spotify.ClientId
 	scopes := "playlist-read-private playlist-modify-private"
 	redirectUrl := "http://localhost:8000/spotify-auth"
 	queryParams := url.Values{}
 	queryParams.Add("response_type", "code")
-	queryParams.Add("client_id", spotifyApiKey)
+	queryParams.Add("client_id", spotifyClientId)
 	queryParams.Add("scope", scopes)
 	queryParams.Add("redirect_uri", redirectUrl)
 	// TODO: put this into a cookie and compare the value in the next endpoint to make sure they haven't changed
@@ -220,8 +240,7 @@ func authenticate(c *gin.Context) {
 	spotifyURL := "https://accounts.spotify.com/authorize"
 	fullSpotifyURL := fmt.Sprintf("%s?%s", spotifyURL, queryString)
 	log.Info("Please follow this url to authenticate spotify", "link", fullSpotifyURL)
-
-	c.IndentedJSON(http.StatusOK, "success")
+	c.Redirect(http.StatusFound, fullSpotifyURL)
 }
 
 func getPing(c *gin.Context) {

@@ -8,16 +8,24 @@ import (
 	"github.com/charmbracelet/log"
 )
 
+type LastFMAuthData struct {
+	ApiKey       string `json:"api_key"`
+	SharedSecret string `json:"shared_secret"`
+	Token        string `json:"token"`
+}
+
 type SpotifyAuthData struct {
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token"`
 	ExpiresIn    int       `json:"expires_in"`
 	ExpiresAt    time.Time `json:"expires_at"`
+	ClientId     string    `json:"client_id"`
+	ClientSecret string    `json:"client_secret"`
 }
 
 type Config struct {
 	Auth struct {
-		LastFM  string          `json:"last_fm"`
+		LastFM  LastFMAuthData  `json:"last_fm"`
 		Spotify SpotifyAuthData `json:"spotify"`
 	} `json:"auth"`
 	Config struct {
@@ -25,7 +33,7 @@ type Config struct {
 	} `json:"config"`
 }
 
-const FILENAME = "tokens.json"
+const FILENAME = "config.json"
 
 var cachedData *Config
 
@@ -51,7 +59,7 @@ func LoadConfig(force bool) (*Config, error) {
 func readConfigFile(filename string) (*Config, error) {
 	var config Config
 
-	configFile, err := os.Open(filename)
+	configFile, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, err
