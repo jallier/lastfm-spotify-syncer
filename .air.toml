@@ -6,6 +6,7 @@ tmp_dir = "tmp"
   args_bin = []
   bin = "./tmp/main"
   cmd = "go build -o ./tmp/main ."
+  pre_cmd = ["./tailwind -i ./assets/app.css -o ./static/app.css"]
   delay = 1000
   exclude_dir = ["assets", "tmp", "vendor", "testdata"]
   exclude_file = []
@@ -20,12 +21,10 @@ tmp_dir = "tmp"
   log = "build-errors.log"
   poll = false
   poll_interval = 0
-  post_cmd = []
-  pre_cmd = []
   rerun = false
   rerun_delay = 500
   send_interrupt = false
-  stop_on_error = false
+  stop_on_error = true
 
 [color]
   app = ""

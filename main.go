@@ -19,6 +19,9 @@ import (
 )
 
 func main() {
+	// TODO: change for prod
+	log.SetLevel(log.DebugLevel)
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -40,8 +43,22 @@ func main() {
 		log.Fatal("Cannot load config", "error", err)
 	}
 
+	// Setup
 	router := gin.Default()
+	router.ForwardedByClientIP = true
+	router.SetTrustedProxies([]string{"127.0.0.1"})
+	router.LoadHTMLGlob("templates/**/*.tmpl")
+	router.Static("/static", "./static")
+
 	router.GET("/ping", getPing)
+
+	// HTML routes
+	router.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index", gin.H{
+			"title":       "Test",
+			"lastFmToken": conf.Auth.LastFM,
+		})
+	})
 
 	// Endpoint to send links user needs to follow to auth with both services
 	router.GET("/authenticate", authenticate)
