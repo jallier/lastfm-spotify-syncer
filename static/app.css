@@ -563,6 +563,11 @@ video {
   background-color: rgb(59 130 246 / var(--tw-bg-opacity));
 }
 
+.bg-green-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(34 197 94 / var(--tw-bg-opacity));
+}
+
 .bg-slate-400 {
   --tw-bg-opacity: 1;
   background-color: rgb(148 163 184 / var(--tw-bg-opacity));
@@ -625,6 +630,11 @@ video {
   --tw-shadow: var(--tw-shadow-colored);
 }
 
+.shadow-green-500\/20 {
+  --tw-shadow-color: rgb(34 197 94 / 0.2);
+  --tw-shadow: var(--tw-shadow-colored);
+}
+
 .transition-all {
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -639,6 +649,11 @@ video {
 
 .hover\:shadow-blue-500\/40:hover {
   --tw-shadow-color: rgb(59 130 246 / 0.4);
+  --tw-shadow: var(--tw-shadow-colored);
+}
+
+.hover\:shadow-green-500\/40:hover {
+  --tw-shadow-color: rgb(34 197 94 / 0.4);
   --tw-shadow: var(--tw-shadow-colored);
 }
 
