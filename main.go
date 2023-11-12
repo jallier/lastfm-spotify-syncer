@@ -53,6 +53,12 @@ func main() {
 
 	// HTML routes
 	router.GET("/", func(c *gin.Context) {
+		conf, err := config.LoadConfig(false)
+		if err != nil {
+			log.Error("Error reading config", "error", err)
+			c.String(http.StatusInternalServerError, "Error reading config file")
+			return
+		}
 		signedIn := false
 		// TODO: Need the client ids and secrets to be checked too?
 		if conf.Auth.LastFM.Token != "" && conf.Auth.Spotify.RefreshToken != "" {
@@ -82,7 +88,39 @@ func main() {
 	router.GET("/sync", sync)
 
 	// admin endpoints
-	router.GET("/set-sync", setSync)
+	router.GET("/admin/set-sync", setSync)
+	router.POST("/admin/credentials", func(c *gin.Context) {
+		conf, err := config.LoadConfig(true)
+		if err != nil {
+			log.Error("Error reading config", "error", err)
+			c.String(http.StatusInternalServerError, "Error reading config file")
+			return
+		}
+
+		type Credentials struct {
+			LastFMApiKey        string `form:"lastfm-api-key"`
+			LastFmSharedSecret  string `form:"lastfm-shared-secret"`
+			SpotifyClientId     string `form:"spotify-client-id"`
+			SpotifyClientSecret string `form:"spotify-client-secret"`
+		}
+		var credentials Credentials
+		err = c.Bind(&credentials)
+		if err != nil {
+			log.Error("Error reading form data", "error", err)
+			c.String(http.StatusInternalServerError, "Error reading form data")
+			return
+		}
+
+		conf.Auth.LastFM.ApiKey = credentials.LastFMApiKey
+		conf.Auth.LastFM.SharedSecret = credentials.LastFmSharedSecret
+		conf.Auth.Spotify.ClientId = credentials.SpotifyClientId
+		conf.Auth.Spotify.ClientSecret = credentials.SpotifyClientSecret
+		log.Debug("new lastfm api key is", "key", conf.Auth)
+
+		config.WriteConfig(conf)
+
+		c.Redirect(http.StatusFound, "/")
+	})
 
 	if conf.Config.Sync {
 		s.StartAsync()
