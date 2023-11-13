@@ -30,7 +30,7 @@ func main() {
 	s := scheduler.GetScheduler()
 	s.WaitForScheduleAll()
 	_, err = s.Every(1).Minutes().Do(func() {
-		log.Info("Scheduler runs")
+		log.Debug("Scheduler runs")
 	})
 	if err != nil {
 		log.Error("Error scheduling job", "error", err)
@@ -200,7 +200,7 @@ func lastFmCallback(c *gin.Context) {
 	conf.Auth.LastFM.Token = data.Session.Key
 	config.WriteConfig(conf)
 
-	c.String(http.StatusOK, "success")
+	c.Redirect(http.StatusFound, "/")
 }
 
 type SpotifyCallbackData struct {
@@ -238,7 +238,7 @@ func spotifyCallback(c *gin.Context) {
 	conf.Auth.Spotify = authData
 	config.WriteConfig(conf)
 
-	c.String(http.StatusOK, "success")
+	c.Redirect(http.StatusFound, "/")
 }
 
 func authenticateLastFM(c *gin.Context) {

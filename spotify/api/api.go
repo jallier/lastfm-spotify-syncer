@@ -17,6 +17,7 @@ import (
 
 const SPOTIFY_API_URL = "https://api.spotify.com/v1"
 
+// Complete authorization with spotify
 func Authorize(authData *config.SpotifyAuthData, code string) error {
 	conf, err := config.LoadConfig(false)
 	if err != nil {
@@ -61,7 +62,15 @@ func Authorize(authData *config.SpotifyAuthData, code string) error {
 		return nil
 	}
 
-	return json.NewDecoder(resp.Body).Decode(&authData)
+	err = json.NewDecoder(resp.Body).Decode(&authData)
+	authData.ClientId = clientID
+	authData.ClientSecret = clientSecret
+
+	expiresIn := time.Duration(conf.Auth.Spotify.ExpiresIn) * time.Second
+	expiresAt := time.Now().Add(expiresIn)
+	authData.ExpiresAt = expiresAt
+
+	return err
 }
 
 func GetAuth() (*config.SpotifyAuthData, error) {
