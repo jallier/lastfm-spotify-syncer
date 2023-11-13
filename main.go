@@ -32,6 +32,9 @@ func main() {
 	_, err = s.Every(1).Minutes().Do(func() {
 		log.Debug("Scheduler runs")
 	})
+	_, err = s.Every(1).Month(1).Do(func() {
+		log.Info("Running monthly sync job...")
+	})
 	if err != nil {
 		log.Error("Error scheduling job", "error", err)
 	}
@@ -147,21 +150,11 @@ func setSync(c *gin.Context) {
 	if conf.Config.Sync {
 		s.StartAsync()
 		log.Info("sync started")
-		c.String(
-			http.StatusOK,
-			`<div id="toggle" class="rounded-full w-8 h-4 p-0.5 bg-green-500">
-          <div id="inner-toggle" class="rounded-full w-3 h-3 bg-white transform mx-auto duration-300 ease-in-out translate-x-2" ></div>
-        </div>`,
-		)
+		c.HTML(http.StatusOK, "partial/sync-on", nil)
 	} else {
 		s.Stop()
 		log.Info("sync stopped")
-		c.String(
-			http.StatusOK,
-			`<div id="toggle" class="rounded-full w-8 h-4 p-0.5 bg-red-500">
-          <div id="inner-toggle" class="rounded-full w-3 h-3 bg-white transform mx-auto duration-300 ease-in-out -translate-x-2" ></div>
-        </div>`,
-		)
+		c.HTML(http.StatusOK, "partial/sync-off", nil)
 	}
 }
 
