@@ -88,7 +88,7 @@ func main() {
 	router.GET("/sync", sync)
 
 	// admin endpoints
-	router.GET("/admin/set-sync", setSync)
+	router.POST("/admin/set-sync", setSync)
 	router.POST("/admin/credentials", func(c *gin.Context) {
 		conf, err := config.LoadConfig(true)
 		if err != nil {
@@ -132,19 +132,7 @@ func main() {
 	router.Run("localhost:8000")
 }
 
-type SetSyncData struct {
-	Sync bool `form:"sync"`
-}
-
 func setSync(c *gin.Context) {
-	var setSyncData SetSyncData
-	err := c.ShouldBindQuery(&setSyncData)
-	if err != nil {
-		log.Error("loading query string", "error", err)
-		c.String(http.StatusInternalServerError, "Error loading query string")
-		return
-	}
-
 	conf, err := config.LoadConfig(false)
 	if err != nil {
 		log.Error("error loading config", "error", err)
@@ -152,18 +140,28 @@ func setSync(c *gin.Context) {
 		return
 	}
 
-	conf.Config.Sync = setSyncData.Sync
+	conf.Config.Sync = !conf.Config.Sync
 	config.WriteConfig(conf)
 
 	s := scheduler.GetScheduler()
-	if setSyncData.Sync {
+	if conf.Config.Sync {
 		s.StartAsync()
 		log.Info("sync started")
-		c.String(http.StatusOK, "Sync started")
+		c.String(
+			http.StatusOK,
+			`<div id="toggle" class="rounded-full w-8 h-4 p-0.5 bg-green-500">
+          <div id="inner-toggle" class="rounded-full w-3 h-3 bg-white transform mx-auto duration-300 ease-in-out translate-x-2" ></div>
+        </div>`,
+		)
 	} else {
 		s.Stop()
 		log.Info("sync stopped")
-		c.String(http.StatusOK, "Sync stopped")
+		c.String(
+			http.StatusOK,
+			`<div id="toggle" class="rounded-full w-8 h-4 p-0.5 bg-red-500">
+          <div id="inner-toggle" class="rounded-full w-3 h-3 bg-white transform mx-auto duration-300 ease-in-out -translate-x-2" ></div>
+        </div>`,
+		)
 	}
 }
 
