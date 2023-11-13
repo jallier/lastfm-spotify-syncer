@@ -7,6 +7,8 @@
     integrity="sha384-rgjA7mptc2ETQqXoYC3/zJvkU7K/aP44Y+z7xQuJiVnB/422P/Ak+F/AqFR7E4Wr"
     crossorigin="anonymous"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  {{template "partial/sync-manually-styles"}}
+
   <title>LastFM Spotify Syncer</title>
 </head>
 
@@ -83,7 +85,7 @@
         </button>
       </div>
     </form>
-    <div class="flex flex-col py-2">
+    <div class="flex flex-col gap-2 py-2">
       <div>
         Sync enabled:
       </div>
@@ -102,6 +104,9 @@
             On
           </span>
         </div>
+      </div>
+      <div>
+        {{template "partial/sync-manually"}}
       </div>
     </div>
   </div>

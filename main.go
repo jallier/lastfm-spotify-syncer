@@ -32,12 +32,20 @@ func main() {
 	_, err = s.Every(1).Minutes().Do(func() {
 		log.Debug("Scheduler runs")
 	})
+	if err != nil {
+		log.Error("Error scheduling job", "error", err)
+	}
+
+	// Schedule monthly job - hardcoded for now
 	_, err = s.Every(1).Month(1).Do(func() {
 		log.Info("Running monthly sync job...")
+		sync()
+		log.Info("Sync job complete")
 	})
 	if err != nil {
 		log.Error("Error scheduling job", "error", err)
 	}
+	s.StartAsync()
 
 	// Load the config file here
 	conf, err := config.LoadConfig(false)
@@ -88,7 +96,7 @@ func main() {
 	// Data endpoints
 	router.GET("/toptracks", handleTopTracks)
 	router.GET("/playlists", getSpotifyPlaylists)
-	router.GET("/sync", sync)
+	router.GET("/sync", handleSync)
 
 	// admin endpoints
 	router.POST("/admin/set-sync", setSync)
@@ -126,10 +134,10 @@ func main() {
 	})
 
 	if conf.Config.Sync {
-		s.StartAsync()
 		log.Info("sync started")
 	} else {
-		log.Info("sync not enabled")
+		log.Info("sync not enabled; pausing jobs")
+		s.PauseJobExecution(true)
 	}
 
 	router.Run("localhost:8000")
@@ -148,11 +156,11 @@ func setSync(c *gin.Context) {
 
 	s := scheduler.GetScheduler()
 	if conf.Config.Sync {
-		s.StartAsync()
+		s.PauseJobExecution(false)
 		log.Info("sync started")
 		c.HTML(http.StatusOK, "partial/sync-on", nil)
 	} else {
-		s.Stop()
+		s.PauseJobExecution(true)
 		log.Info("sync stopped")
 		c.HTML(http.StatusOK, "partial/sync-off", nil)
 	}
@@ -312,18 +320,27 @@ func getSpotifyPlaylists(c *gin.Context) {
 	log.Info("Playlist data", "data", playlistsData)
 }
 
-func sync(c *gin.Context) {
+func handleSync(c *gin.Context) {
+	err := sync()
+	if err != nil {
+		log.Error("Error running sync", "error", err)
+		c.String(http.StatusInternalServerError, "Error running sync")
+		return
+	}
+
+	c.HTML(http.StatusOK, "partial/sync-manually", nil)
+}
+
+func sync() error {
 	topTracksData, err := getLastFmTopTracksMonth()
 	if err != nil {
 		log.Error("Unable to fetch from last fm api", "error", err)
-		c.String(http.StatusInternalServerError, "Failed to fetch from lastfm")
-		return
+		return err
 	}
 	spotifyUserData, err := getSpotifyUser()
 	if err != nil {
 		log.Error("Unable to fetch from spotify api", "error", err)
-		c.String(http.StatusInternalServerError, "Failed to fetch from spotify")
-		return
+		return err
 	}
 
 	var trackIds []string
@@ -345,8 +362,7 @@ func sync(c *gin.Context) {
 
 		if err != nil {
 			log.Error("error searching spotify", "error", err)
-			c.String(http.StatusInternalServerError, "Failed to search spotify")
-			return
+			continue
 		}
 
 		trackIds = append(trackIds, searchData.Tracks.Items[0].ID)
@@ -357,8 +373,7 @@ func sync(c *gin.Context) {
 	playlistData, err := createSpotifyPlaylist(spotifyUserData.ID)
 	if err != nil {
 		log.Error("error creating playlist", "error", err)
-		c.String(http.StatusInternalServerError, "Failed to create spotify playlist")
-		return
+		return err
 	}
 	log.Info("created playlist", "playlist", playlistData)
 
@@ -366,12 +381,11 @@ func sync(c *gin.Context) {
 	_, err = addItemsToSpotifyPlaylist(playlistData.ID, trackIds)
 	if err != nil {
 		log.Error("error adding items to playlist playlist", "error", err)
-		c.String(http.StatusInternalServerError, "Failed to update spotify playlist")
-		return // TODO: try delete the blank playlist here
+		return err // TODO: try delete the blank playlist here
 	}
 
 	log.Info("Populated playlist!")
-	c.String(http.StatusOK, "Spotify playlist created!")
+	return nil
 }
 
 func addItemsToSpotifyPlaylist(playlistId string, trackIds []string) (spotifyApi.AddPlaylistTracks, error) {

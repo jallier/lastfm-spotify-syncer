@@ -11,3 +11,60 @@
     class="rounded-full w-3 h-3 bg-white transform mx-auto duration-300 ease-in-out -translate-x-2"></div>
 </div>
 {{end}}
+
+<!-- These are defined to allow using display: none instead of the default of transparency -->
+{{define "partial/sync-manually-styles"}}
+<style type="text/css">
+  .my-htmx-indicator {
+    display: none;
+  }
+
+  .htmx-request .my-htmx-indicator {
+    display: inline;
+  }
+
+  .htmx-request.my-htmx-indicator {
+    display: inline;
+  }
+</style>
+{{end}}
+
+{{define "partial/sync-manually"}}
+<button id="sync-manually" hx-get="/sync" hx-disabled-elt="this" hx-swap="outerHTML"
+  class="w-full h-16 inline-flex gap-2 justify-center items-center rounded-lg bg-blue-500 py-3 px-6 font-sans text-xs font-bold uppercase text-white shadow-md shadow-blue-500/20 transition-all hover:shadow-lg hover:shadow-blue-500/40 focus:opacity-[0.85] focus:shadow-none active:opacity-[0.85] active:shadow-none disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none">
+  <svg class="my-htmx-indicator" width="33.75" height="35" viewBox="0 0 135 140" xmlns="http://www.w3.org/2000/svg"
+    fill="#fff">
+    <rect y="10" width="15" height="120" rx="6">
+      <animate attributeName="height" begin="0.5s" dur="1s" values="120;110;100;90;80;70;60;50;40;140;120"
+        calcMode="linear" repeatCount="indefinite" />
+      <animate attributeName="y" begin="0.5s" dur="1s" values="10;15;20;25;30;35;40;45;50;0;10" calcMode="linear"
+        repeatCount="indefinite" />
+    </rect>
+    <rect x="30" y="10" width="15" height="120" rx="6">
+      <animate attributeName="height" begin="0.25s" dur="1s" values="120;110;100;90;80;70;60;50;40;140;120"
+        calcMode="linear" repeatCount="indefinite" />
+      <animate attributeName="y" begin="0.25s" dur="1s" values="10;15;20;25;30;35;40;45;50;0;10" calcMode="linear"
+        repeatCount="indefinite" />
+    </rect>
+    <rect x="60" width="15" height="140" rx="6">
+      <animate attributeName="height" begin="0s" dur="1s" values="120;110;100;90;80;70;60;50;40;140;120"
+        calcMode="linear" repeatCount="indefinite" />
+      <animate attributeName="y" begin="0s" dur="1s" values="10;15;20;25;30;35;40;45;50;0;10" calcMode="linear"
+        repeatCount="indefinite" />
+    </rect>
+    <rect x="90" y="10" width="15" height="120" rx="6">
+      <animate attributeName="height" begin="0.25s" dur="1s" values="120;110;100;90;80;70;60;50;40;140;120"
+        calcMode="linear" repeatCount="indefinite" />
+      <animate attributeName="y" begin="0.25s" dur="1s" values="10;15;20;25;30;35;40;45;50;0;10" calcMode="linear"
+        repeatCount="indefinite" />
+    </rect>
+    <rect x="120" y="10" width="15" height="120" rx="6">
+      <animate attributeName="height" begin="0.5s" dur="1s" values="120;110;100;90;80;70;60;50;40;140;120"
+        calcMode="linear" repeatCount="indefinite" />
+      <animate attributeName="y" begin="0.5s" dur="1s" values="10;15;20;25;30;35;40;45;50;0;10" calcMode="linear"
+        repeatCount="indefinite" />
+    </rect>
+  </svg>
+  Run sync manually now
+</button>
+{{end}}
