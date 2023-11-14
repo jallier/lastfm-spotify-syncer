@@ -10,6 +10,8 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -18,12 +20,15 @@ import (
 )
 
 func main() {
-	// TODO: change for prod
-	log.SetLevel(log.DebugLevel)
-
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Info("Error loading .env file. Either one not provided or running in prod mode")
+	}
+	appEnv := strings.ToLower(os.Getenv("APP_ENV"))
+	if appEnv == "dev" || appEnv == "development" {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
 	}
 
 	// setup the scheduler
@@ -55,8 +60,8 @@ func main() {
 
 	// Setup
 	router := gin.Default()
-	router.ForwardedByClientIP = true
-	router.SetTrustedProxies([]string{"127.0.0.1"})
+	// router.ForwardedByClientIP = true
+	// router.SetTrustedProxies([]string{"127.0.0.1"})
 	router.LoadHTMLGlob("templates/**/*.tmpl")
 	router.Static("/static", "./static")
 
@@ -140,7 +145,7 @@ func main() {
 		s.PauseJobExecution(true)
 	}
 
-	router.Run("localhost:8000")
+	router.Run(":8000")
 }
 
 func setSync(c *gin.Context) {
