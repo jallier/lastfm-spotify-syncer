@@ -33,7 +33,7 @@ type Config struct {
 	} `json:"config"`
 }
 
-const FILENAME = "config.json"
+const FILENAME = "conf/config.json"
 
 var cachedData *Config
 
