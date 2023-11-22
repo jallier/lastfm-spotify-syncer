@@ -10,8 +10,6 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -24,8 +22,8 @@ func main() {
 	if err != nil {
 		log.Info("Error loading .env file. Either one not provided or running in prod mode")
 	}
-	appEnv := strings.ToLower(os.Getenv("APP_ENV"))
-	if appEnv == "dev" || appEnv == "development" {
+
+	if config.IsDev() {
 		log.SetLevel(log.DebugLevel)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
@@ -34,12 +32,6 @@ func main() {
 	// setup the scheduler
 	s := scheduler.GetScheduler()
 	s.WaitForScheduleAll()
-	_, err = s.Every(1).Minutes().Do(func() {
-		log.Debug("Scheduler runs")
-	})
-	if err != nil {
-		log.Error("Error scheduling job", "error", err)
-	}
 
 	// Schedule monthly job - hardcoded for now
 	_, err = s.Every(1).Month(1).Do(func() {
@@ -60,8 +52,10 @@ func main() {
 
 	// Setup
 	router := gin.Default()
-	// router.ForwardedByClientIP = true
-	// router.SetTrustedProxies([]string{"127.0.0.1"})
+	if config.IsDev() {
+		router.ForwardedByClientIP = true
+		router.SetTrustedProxies([]string{"127.0.0.1"})
+	}
 	router.LoadHTMLGlob("templates/**/*.tmpl")
 	router.Static("/static", "./static")
 

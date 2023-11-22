@@ -3,9 +3,12 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/joho/godotenv"
 )
 
 type LastFMAuthData struct {
@@ -35,6 +38,19 @@ type Config struct {
 
 const FILENAME = "conf/config.json"
 
+var appEnv string = "NIL"
+
+func IsDev() bool {
+	if appEnv == "NIL" {
+		err := godotenv.Load()
+		appEnv = strings.ToLower(os.Getenv("APP_ENV"))
+		if err != nil {
+			log.Info("Error loading .env file. Either one not provided or running in prod mode")
+		}
+	}
+	return appEnv == "dev" || appEnv == "development"
+}
+
 var cachedData *Config
 
 // Load the config file.
@@ -59,9 +75,15 @@ func LoadConfig(force bool) (*Config, error) {
 func readConfigFile(filename string) (*Config, error) {
 	var config Config
 
-	configFile, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0666)
+	err := os.MkdirAll(filepath.Dir(filename), 0775)
 	if err != nil {
-		log.Error(err.Error())
+		log.Error(err)
+		return nil, err
+	}
+
+	configFile, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0660)
+	if err != nil {
+		log.Error(err)
 		return nil, err
 	}
 	defer configFile.Close()
