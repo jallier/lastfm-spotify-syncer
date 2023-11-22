@@ -10,12 +10,30 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"text/template"
 	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
+
+func wrap(syncId string, sync bool) map[string]interface{} {
+	log.Debug("Wrap called")
+	return map[string]interface{}{
+		"syncId": syncId,
+		"sync":   sync,
+	}
+}
+
+func toTitle(input string) string {
+	caser := cases.Title(language.English)
+	val := caser.String(input)
+	log.Debug("toTitle", "val", val)
+	return val
+}
 
 func main() {
 	err := godotenv.Load()
@@ -56,6 +74,10 @@ func main() {
 		router.ForwardedByClientIP = true
 		router.SetTrustedProxies([]string{"127.0.0.1"})
 	}
+	router.SetFuncMap(template.FuncMap{
+		"wrap":  wrap,
+		"title": toTitle,
+	})
 	router.LoadHTMLGlob("templates/**/*.tmpl")
 	router.Static("/static", "./static")
 

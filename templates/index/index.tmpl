@@ -89,20 +89,12 @@
       <div>
         Sync enabled:
       </div>
-      <div>
-        <div class="flex items-center m-2 cursor-pointer clickable" hx-post="/admin/set-sync" hx-target="#toggle"
-          hx-swap="outerHTML">
-          <span class="font-semibold text-xs mr-1">
-            Off
-          </span>
-          {{if .sync}}
-          {{template "partial/sync-on"}}
-          {{else}}
-          {{template "partial/sync-off"}}
-          {{end}}
-          <span class="font-semibold text-xs ml-1">
-            On
-          </span>
+      <div class="">
+        <div>
+          {{template "partial/sync" (wrap "weekly" false)}}
+        </div>
+        <div>
+          {{template "partial/sync" (wrap "monthly" false)}}
         </div>
       </div>
       <div>
