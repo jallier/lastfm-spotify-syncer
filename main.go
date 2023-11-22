@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strings"
 	"text/template"
 	"time"
 
@@ -155,7 +156,16 @@ func main() {
 				},
 			},
 			"signedIn": signedIn,
-			"sync":     conf.Config.Sync,
+			"sync": []map[string]any{
+				{
+					"syncId": "weekly",
+					"sync":   conf.Config.Sync.Weekly,
+				},
+				{
+					"syncId": "monthly",
+					"sync":   conf.Config.Sync.Monthly,
+				},
+			},
 		})
 	})
 
@@ -173,7 +183,7 @@ func main() {
 	router.GET("/sync", handleSync)
 
 	// admin endpoints
-	router.POST("/admin/set-sync", setSync)
+	router.POST("/admin/set-sync/:frequency", setSync)
 	router.POST("/admin/credentials", func(c *gin.Context) {
 		conf, err := config.LoadConfig(true)
 		if err != nil {
@@ -207,7 +217,7 @@ func main() {
 		c.Redirect(http.StatusFound, "/")
 	})
 
-	if conf.Config.Sync {
+	if conf.Config.Sync.Monthly || conf.Config.Sync.Weekly {
 		log.Info("sync started")
 	} else {
 		log.Info("sync not enabled; pausing jobs")
@@ -218,6 +228,7 @@ func main() {
 }
 
 func setSync(c *gin.Context) {
+	frequency := c.Param("frequency")
 	conf, err := config.LoadConfig(false)
 	if err != nil {
 		log.Error("error loading config", "error", err)
@@ -225,18 +236,41 @@ func setSync(c *gin.Context) {
 		return
 	}
 
-	conf.Config.Sync = !conf.Config.Sync
+	validatedFrequency := strings.ToLower(frequency)
+	syncOn := false
+	switch validatedFrequency {
+	case "weekly":
+		conf.Config.Sync.Weekly = !conf.Config.Sync.Weekly
+		syncOn = conf.Config.Sync.Weekly
+	case "monthly":
+		conf.Config.Sync.Monthly = !conf.Config.Sync.Monthly
+		syncOn = conf.Config.Sync.Monthly
+	default:
+		log.Warn("Invalid value given", "value", frequency)
+		c.String(400, "Invalid value given; must be weekly or monthly")
+		return
+	}
 	config.WriteConfig(conf)
 
+	// We need to track these responses separately here
+	if syncOn {
+		c.HTML(http.StatusOK, "partial/sync-on", gin.H{
+			"syncId": validatedFrequency,
+		})
+	} else {
+		c.HTML(http.StatusOK, "partial/sync-off", gin.H{
+			"syncId": validatedFrequency,
+		})
+	}
+
+	// We need to change scheduler state depending on both settings
 	s := scheduler.GetScheduler()
-	if conf.Config.Sync {
+	if conf.Config.Sync.Monthly || conf.Config.Sync.Weekly {
 		s.PauseJobExecution(false)
 		log.Info("sync started")
-		c.HTML(http.StatusOK, "partial/sync-on", nil)
 	} else {
 		s.PauseJobExecution(true)
 		log.Info("sync stopped")
-		c.HTML(http.StatusOK, "partial/sync-off", nil)
 	}
 }
 

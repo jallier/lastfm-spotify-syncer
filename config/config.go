@@ -32,7 +32,10 @@ type Config struct {
 		Spotify SpotifyAuthData `json:"spotify"`
 	} `json:"auth"`
 	Config struct {
-		Sync bool `json:"sync"`
+		Sync struct {
+			Weekly  bool `json:"weekly"`
+			Monthly bool `json:"monthly"`
+		} `json:"sync"`
 	} `json:"config"`
 }
 

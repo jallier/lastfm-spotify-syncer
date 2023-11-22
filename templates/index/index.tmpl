@@ -55,14 +55,9 @@
       <div>
         Sync enabled:
       </div>
-      <div class="">
-        <div>
-          {{template "partial/sync" (wrap "weekly" false)}}
-        </div>
-        <div>
-          {{template "partial/sync" (wrap "monthly" false)}}
-        </div>
-      </div>
+      {{range .sync}}
+        {{template "partial/sync" . }}
+      {{end}}
     </div>
   </div>
 </body>

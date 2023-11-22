@@ -1,13 +1,14 @@
 {{define "partial/sync-on"}}
-<div id="toggle" class="rounded-full w-8 h-4 p-0.5 bg-green-500">
-  <div id="inner-toggle" class="rounded-full w-3 h-3 bg-white transform mx-auto duration-300 ease-in-out translate-x-2">
+<div id="toggle-{{.syncId}}" class="rounded-full w-8 h-4 p-0.5 bg-green-500">
+  <div id="inner-toggle-{{.syncId}}"
+    class="rounded-full w-3 h-3 bg-white transform mx-auto duration-300 ease-in-out translate-x-2">
   </div>
 </div>
 {{end}}
 
 {{define "partial/sync-off"}}
-<div id="toggle" class="rounded-full w-8 h-4 p-0.5 bg-red-500">
-  <div id="inner-toggle"
+<div id="toggle-{{.syncId}}" class="rounded-full w-8 h-4 p-0.5 bg-red-500">
+  <div id="inner-toggle-{{.syncId}}"
     class="rounded-full w-3 h-3 bg-white transform mx-auto duration-300 ease-in-out -translate-x-2"></div>
 </div>
 {{end}}
@@ -71,8 +72,7 @@
 
 {{define "partial/sync"}}
 <!-- <div class="flex items-center m-2 cursor-pointer clickable gap-2" hx-post="/admin/set-sync" hx-target="#toggle" -->
-<div class="flex items-center m-2 cursor-pointer clickable gap-2" hx-post="/admin/set-sync/{{.syncId}}" hx-target="#toggle"
-  hx-swap="outerHTML">
+<div class="flex items-center m-2 cursor-pointer clickable gap-2">
   <p>
     {{ title .syncId}}
   </p>
@@ -87,14 +87,14 @@
       </label>
     </div>
   </div>
-  <div class="flex">
+  <div class="flex" hx-post="/admin/set-sync/{{.syncId}}" hx-swap="outerHTML" hx-target="#toggle-{{.syncId}}">
     <span class="font-semibold text-xs mr-1">
       Off
     </span>
     {{if .sync}}
-    {{template "partial/sync-on"}}
+    {{template "partial/sync-on" .}}
     {{else}}
-    {{template "partial/sync-off"}}
+    {{template "partial/sync-off" .}}
     {{end}}
     <span class="font-semibold text-xs ml-1">
       On
