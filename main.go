@@ -28,6 +28,37 @@ func wrap(syncId string, sync bool) map[string]interface{} {
 	}
 }
 
+func wrapAny(input ...string) map[string]interface{} {
+	log.Debug("wrapAny called", "input", input)
+
+	output := make(map[string]interface{})
+	for _, v := range input {
+		output[v] = v
+	}
+
+	log.Debug("wrapAny called", "output", output)
+	return output
+}
+
+func unflatten(input ...any) map[string]interface{} {
+	log.Debug("unflatten", "input", input)
+
+	output := make(map[string]interface{})
+	var firstVal any
+	for i, v := range input {
+		if i%2 == 0 {
+			firstVal = v
+		} else {
+			if value, ok := firstVal.(string); ok {
+				output[value] = v
+			}
+		}
+	}
+
+	log.Debug("unflatten", "output", output)
+	return output
+}
+
 func toTitle(input string) string {
 	caser := cases.Title(language.English)
 	val := caser.String(input)
@@ -75,8 +106,10 @@ func main() {
 		router.SetTrustedProxies([]string{"127.0.0.1"})
 	}
 	router.SetFuncMap(template.FuncMap{
-		"wrap":  wrap,
-		"title": toTitle,
+		"wrap":      wrap,
+		"wrapAny":   wrapAny,
+		"title":     toTitle,
+		"unflatten": unflatten,
 	})
 	router.LoadHTMLGlob("templates/**/*.tmpl")
 	router.Static("/static", "./static")
@@ -96,13 +129,33 @@ func main() {
 		if conf.Auth.LastFM.Token != "" && conf.Auth.Spotify.RefreshToken != "" {
 			signedIn = true
 		}
+
 		c.HTML(http.StatusOK, "index", gin.H{
-			"lastFmApiKey":        conf.Auth.LastFM.ApiKey,
-			"lastFmSharedSecret":  conf.Auth.LastFM.SharedSecret,
-			"spotifyClientId":     conf.Auth.Spotify.ClientId,
-			"spotifyClientSecret": conf.Auth.Spotify.ClientSecret,
-			"signedIn":            signedIn,
-			"sync":                conf.Config.Sync,
+			// TODO: Better if these are a typesafe struct, but handle that later
+			"credentials": []map[string]string{
+				{
+					"id":    "lastfm-api-key",
+					"value": conf.Auth.LastFM.ApiKey,
+					"title": "LastFM Api Key",
+				},
+				{
+					"id":    "lastfm-shared-secret",
+					"value": conf.Auth.LastFM.SharedSecret,
+					"title": "LastFM Shared Secret",
+				},
+				{
+					"id":    "spotify-client-id",
+					"value": conf.Auth.Spotify.ClientId,
+					"title": "Spotify Client Id",
+				},
+				{
+					"id":    "spotify-client-secret",
+					"value": conf.Auth.Spotify.ClientSecret,
+					"title": "Spotify Client Secret",
+				},
+			},
+			"signedIn": signedIn,
+			"sync":     conf.Config.Sync,
 		})
 	})
 

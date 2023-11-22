@@ -30,8 +30,8 @@
 {{end}}
 
 {{define "partial/sync-manually"}}
-<button id="sync-manually" hx-get="/sync" hx-disabled-elt="this" hx-swap="outerHTML"
-  class="w-full h-16 inline-flex gap-2 justify-center items-center rounded-lg bg-blue-500 py-3 px-6 font-sans text-xs font-bold uppercase text-white shadow-md shadow-blue-500/20 transition-all hover:shadow-lg hover:shadow-blue-500/40 focus:opacity-[0.85] focus:shadow-none active:opacity-[0.85] active:shadow-none disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none">
+<button id="sync-manually" hx-get="/sync/{{.syncId}}" hx-disabled-elt="this" hx-swap="outerHTML"
+  class="h-12 inline-flex gap-2 justify-center items-center rounded-lg bg-blue-500 py-3 px-6 font-sans text-xs font-bold uppercase text-white shadow-md shadow-blue-500/20 transition-all hover:shadow-lg hover:shadow-blue-500/40 focus:opacity-[0.85] focus:shadow-none active:opacity-[0.85] active:shadow-none disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none">
   <svg class="my-htmx-indicator" width="33.75" height="35" viewBox="0 0 135 140" xmlns="http://www.w3.org/2000/svg"
     fill="#fff">
     <rect y="10" width="15" height="120" rx="6">
@@ -65,7 +65,7 @@
         repeatCount="indefinite" />
     </rect>
   </svg>
-  Run sync manually now
+  Run now
 </button>
 {{end}}
 
@@ -100,5 +100,6 @@
       On
     </span>
   </div>
+  {{template "partial/sync-manually" .}}
 </div>
 {{end}}
