@@ -14,6 +14,7 @@ import (
 type LastFMAuthData struct {
 	ApiKey       string `json:"api_key"`
 	SharedSecret string `json:"shared_secret"`
+	Username     string `json:"username"`
 	Token        string `json:"token"`
 }
 

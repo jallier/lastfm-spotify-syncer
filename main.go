@@ -158,6 +158,11 @@ func main() {
 					"title": "LastFM Shared Secret",
 				},
 				{
+					"id":    "lastfm-username",
+					"value": conf.Auth.LastFM.Username,
+					"title": "LastFM username",
+				},
+				{
 					"id":    "spotify-client-id",
 					"value": conf.Auth.Spotify.ClientId,
 					"title": "Spotify Client Id",
@@ -208,6 +213,7 @@ func main() {
 		type Credentials struct {
 			LastFMApiKey        string `form:"lastfm-api-key"`
 			LastFmSharedSecret  string `form:"lastfm-shared-secret"`
+			LastFmUsername      string `form:"lastfm-username"`
 			SpotifyClientId     string `form:"spotify-client-id"`
 			SpotifyClientSecret string `form:"spotify-client-secret"`
 		}
@@ -221,6 +227,7 @@ func main() {
 
 		conf.Auth.LastFM.ApiKey = credentials.LastFMApiKey
 		conf.Auth.LastFM.SharedSecret = credentials.LastFmSharedSecret
+		conf.Auth.LastFM.Username = credentials.LastFmUsername
 		conf.Auth.Spotify.ClientId = credentials.SpotifyClientId
 		conf.Auth.Spotify.ClientSecret = credentials.SpotifyClientSecret
 		log.Debug("new lastfm api key is", "key", conf.Auth)
@@ -431,9 +438,9 @@ func sync(period string) error {
 
 	switch period {
 	case "weekly":
-		topTracksData, err = getLastFmTopTracks(period, conf.Config.Sync.Weekly.MaxTracks)
+		topTracksData, err = getLastFmTopTracks(period, conf.Config.Sync.Weekly.MaxTracks, conf.Auth.LastFM.Username)
 	case "monthly":
-		topTracksData, err = getLastFmTopTracks(period, conf.Config.Sync.Monthly.MaxTracks)
+		topTracksData, err = getLastFmTopTracks(period, conf.Config.Sync.Monthly.MaxTracks, conf.Auth.LastFM.Username)
 	default:
 		log.Error("Invalid frequency given", "freq", period)
 		return errors.New("invalid period given")
@@ -546,7 +553,7 @@ func getSpotifyUser() (spotifyApi.User, error) {
 	return userData, err
 }
 
-func getLastFmTopTracks(period string, limit int) (*lastFmApi.TopTracks, error) {
+func getLastFmTopTracks(period string, limit int, username string) (*lastFmApi.TopTracks, error) {
 	var lastFmPeriod string
 	switch period {
 	case "weekly":
@@ -560,8 +567,7 @@ func getLastFmTopTracks(period string, limit int) (*lastFmApi.TopTracks, error) 
 
 	params := map[string]string{
 		"method": "user.getTopTracks",
-		// TODO: Don't use my user lol
-		"user":   "fuzzycut1",
+		"user":   username,
 		"period": lastFmPeriod,
 		"limit":  strconv.Itoa(limit),
 	}
