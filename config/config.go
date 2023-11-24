@@ -33,8 +33,14 @@ type Config struct {
 	} `json:"auth"`
 	Config struct {
 		Sync struct {
-			Weekly  bool `json:"weekly"`
-			Monthly bool `json:"monthly"`
+			Weekly struct {
+				Enabled   bool `json:"enabled"`
+				MaxTracks int  `json:"max_tracks"`
+			} `json:"weekly"`
+			Monthly struct {
+				Enabled   bool `json:"enabled"`
+				MaxTracks int  `json:"max_tracks"`
+			} `json:"monthly"`
 		} `json:"sync"`
 	} `json:"config"`
 }

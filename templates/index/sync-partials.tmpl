@@ -1,69 +1,161 @@
 {{define "partial/sync-on"}}
-<div id="toggle-{{.syncId}}" class="rounded-full w-8 h-4 p-0.5 bg-green-500">
-  <div id="inner-toggle-{{.syncId}}"
-    class="rounded-full w-3 h-3 bg-white transform mx-auto duration-300 ease-in-out translate-x-2">
+<button
+  id="toggle-{{.syncId}}"
+  class="rounded-full w-8 h-4 p-0.5 bg-green-500"
+>
+  <div
+    id="inner-toggle-{{.syncId}}"
+    class="rounded-full w-3 h-3 bg-white transform mx-auto duration-300 ease-in-out translate-x-2"
+  >
   </div>
-</div>
+</button>
 {{end}}
 
 {{define "partial/sync-off"}}
-<div id="toggle-{{.syncId}}" class="rounded-full w-8 h-4 p-0.5 bg-red-500">
-  <div id="inner-toggle-{{.syncId}}"
-    class="rounded-full w-3 h-3 bg-white transform mx-auto duration-300 ease-in-out -translate-x-2"></div>
-</div>
-{{end}}
-
-<!-- These are defined to allow using display: none instead of the default of transparency -->
-{{define "partial/sync-manually-styles"}}
-<style type="text/css">
-  .my-htmx-indicator {
-    display: none;
-  }
-
-  .htmx-request .my-htmx-indicator {
-    display: inline;
-  }
-
-  .htmx-request.my-htmx-indicator {
-    display: inline;
-  }
-</style>
+<button
+  id="toggle-{{.syncId}}"
+  class="rounded-full w-8 h-4 p-0.5 bg-red-500"
+>
+  <div
+    id="inner-toggle-{{.syncId}}"
+    class="rounded-full w-3 h-3 bg-white transform mx-auto duration-300 ease-in-out -translate-x-2"
+  ></div>
+</button>
 {{end}}
 
 {{define "partial/sync-manually"}}
-<button id="sync-manually" hx-get="/sync/{{.syncId}}" hx-disabled-elt="this" hx-swap="outerHTML"
-  class="h-12 inline-flex gap-2 justify-center items-center rounded-lg bg-blue-500 py-3 px-6 font-sans text-xs font-bold uppercase text-white shadow-md shadow-blue-500/20 transition-all hover:shadow-lg hover:shadow-blue-500/40 focus:opacity-[0.85] focus:shadow-none active:opacity-[0.85] active:shadow-none disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none">
-  <svg class="my-htmx-indicator" width="33.75" height="35" viewBox="0 0 135 140" xmlns="http://www.w3.org/2000/svg"
-    fill="#fff">
-    <rect y="10" width="15" height="120" rx="6">
-      <animate attributeName="height" begin="0.5s" dur="1s" values="120;110;100;90;80;70;60;50;40;140;120"
-        calcMode="linear" repeatCount="indefinite" />
-      <animate attributeName="y" begin="0.5s" dur="1s" values="10;15;20;25;30;35;40;45;50;0;10" calcMode="linear"
-        repeatCount="indefinite" />
+<button
+  id="sync-manually"
+  hx-get="/sync/{{.syncId}}"
+  hx-disabled-elt="this"
+  hx-swap="outerHTML"
+  class="h-12 inline-flex gap-2 justify-center items-center rounded-lg bg-blue-500 py-3 px-6 font-sans text-xs font-bold uppercase text-white shadow-md shadow-blue-500/20 transition-all hover:shadow-lg hover:shadow-blue-500/40 focus:opacity-[0.85] focus:shadow-none active:opacity-[0.85] active:shadow-none disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none"
+>
+  <svg
+    class="my-htmx-indicator"
+    width="33.75"
+    height="35"
+    viewBox="0 0 135 140"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="#fff"
+  >
+    <rect
+      y="10"
+      width="15"
+      height="120"
+      rx="6"
+    >
+      <animate
+        attributeName="height"
+        begin="0.5s"
+        dur="1s"
+        values="120;110;100;90;80;70;60;50;40;140;120"
+        calcMode="linear"
+        repeatCount="indefinite"
+      />
+      <animate
+        attributeName="y"
+        begin="0.5s"
+        dur="1s"
+        values="10;15;20;25;30;35;40;45;50;0;10"
+        calcMode="linear"
+        repeatCount="indefinite"
+      />
     </rect>
-    <rect x="30" y="10" width="15" height="120" rx="6">
-      <animate attributeName="height" begin="0.25s" dur="1s" values="120;110;100;90;80;70;60;50;40;140;120"
-        calcMode="linear" repeatCount="indefinite" />
-      <animate attributeName="y" begin="0.25s" dur="1s" values="10;15;20;25;30;35;40;45;50;0;10" calcMode="linear"
-        repeatCount="indefinite" />
+    <rect
+      x="30"
+      y="10"
+      width="15"
+      height="120"
+      rx="6"
+    >
+      <animate
+        attributeName="height"
+        begin="0.25s"
+        dur="1s"
+        values="120;110;100;90;80;70;60;50;40;140;120"
+        calcMode="linear"
+        repeatCount="indefinite"
+      />
+      <animate
+        attributeName="y"
+        begin="0.25s"
+        dur="1s"
+        values="10;15;20;25;30;35;40;45;50;0;10"
+        calcMode="linear"
+        repeatCount="indefinite"
+      />
     </rect>
-    <rect x="60" width="15" height="140" rx="6">
-      <animate attributeName="height" begin="0s" dur="1s" values="120;110;100;90;80;70;60;50;40;140;120"
-        calcMode="linear" repeatCount="indefinite" />
-      <animate attributeName="y" begin="0s" dur="1s" values="10;15;20;25;30;35;40;45;50;0;10" calcMode="linear"
-        repeatCount="indefinite" />
+    <rect
+      x="60"
+      width="15"
+      height="140"
+      rx="6"
+    >
+      <animate
+        attributeName="height"
+        begin="0s"
+        dur="1s"
+        values="120;110;100;90;80;70;60;50;40;140;120"
+        calcMode="linear"
+        repeatCount="indefinite"
+      />
+      <animate
+        attributeName="y"
+        begin="0s"
+        dur="1s"
+        values="10;15;20;25;30;35;40;45;50;0;10"
+        calcMode="linear"
+        repeatCount="indefinite"
+      />
     </rect>
-    <rect x="90" y="10" width="15" height="120" rx="6">
-      <animate attributeName="height" begin="0.25s" dur="1s" values="120;110;100;90;80;70;60;50;40;140;120"
-        calcMode="linear" repeatCount="indefinite" />
-      <animate attributeName="y" begin="0.25s" dur="1s" values="10;15;20;25;30;35;40;45;50;0;10" calcMode="linear"
-        repeatCount="indefinite" />
+    <rect
+      x="90"
+      y="10"
+      width="15"
+      height="120"
+      rx="6"
+    >
+      <animate
+        attributeName="height"
+        begin="0.25s"
+        dur="1s"
+        values="120;110;100;90;80;70;60;50;40;140;120"
+        calcMode="linear"
+        repeatCount="indefinite"
+      />
+      <animate
+        attributeName="y"
+        begin="0.25s"
+        dur="1s"
+        values="10;15;20;25;30;35;40;45;50;0;10"
+        calcMode="linear"
+        repeatCount="indefinite"
+      />
     </rect>
-    <rect x="120" y="10" width="15" height="120" rx="6">
-      <animate attributeName="height" begin="0.5s" dur="1s" values="120;110;100;90;80;70;60;50;40;140;120"
-        calcMode="linear" repeatCount="indefinite" />
-      <animate attributeName="y" begin="0.5s" dur="1s" values="10;15;20;25;30;35;40;45;50;0;10" calcMode="linear"
-        repeatCount="indefinite" />
+    <rect
+      x="120"
+      y="10"
+      width="15"
+      height="120"
+      rx="6"
+    >
+      <animate
+        attributeName="height"
+        begin="0.5s"
+        dur="1s"
+        values="120;110;100;90;80;70;60;50;40;140;120"
+        calcMode="linear"
+        repeatCount="indefinite"
+      />
+      <animate
+        attributeName="y"
+        begin="0.5s"
+        dur="1s"
+        values="10;15;20;25;30;35;40;45;50;0;10"
+        calcMode="linear"
+        repeatCount="indefinite"
+      />
     </rect>
   </svg>
   Run now
@@ -71,23 +163,37 @@
 {{end}}
 
 {{define "partial/sync"}}
-<!-- <div class="flex items-center m-2 cursor-pointer clickable gap-2" hx-post="/admin/set-sync" hx-target="#toggle" -->
-<div class="flex items-center m-2 cursor-pointer clickable gap-2">
+
+<!-- hx-target="#toggle-{{.syncId}}" -->
+<form
+  class="flex items-center m-2 cursor-pointer clickable gap-2"
+  action="/admin/set-sync/{{.syncId}}"
+  method="post"
+  hx-boost="true"
+>
   <p>
-    {{ title .syncId}}
+    {{title .syncId}}
   </p>
   <div class="flex-1">
     <div class="relative">
       <input
         class="peer h-full w-full rounded-[7px] border border-gray-500 invalid:border-red-500 border-t-transparent invalid:border-t-transparent bg-transparent invalid:bg-transparent px-3 py-2.5 font-sans text-sm font-normal text-blue-gray-700 outline outline-0 transition-all placeholder-shown:border placeholder-shown:border-gray-500 invalid:placeholder-shown:border-red-500 placeholder-shown:border-t-gray-500 invalid:placeholder-shown:border-t-red-500 focus:border-2 focus:border-gray-500 invalid:focus:border-red-500 focus:border-t-transparent invalid:focus:border-t-transparent focus:outline-0 invalid:focus:outline-0 disabled:border-0 disabled:bg-blue-gray-50"
-        placeholder="" value="" name="{{.syncId}}" required type="number" min="1" />
+        placeholder=""
+        value="{{.maxTracks}}"
+        name="max-tracks"
+        required
+        type="number"
+        min="1"
+      />
       <label
-        class="before:content[' '] after:content[' '] pointer-events-none absolute left-0 -top-1.5 flex h-full w-full select-none text-[11px] font-normal leading-tight text-gray-500 peer-invalid:text-red-500 transition-all before:pointer-events-none before:mt-[6.5px] before:mr-1 before:box-border before:block before:h-1.5 before:w-2.5 before:rounded-tl-md before:border-t before:border-l before:border-gray-500 peer-invalid:before:border-red-500 before:transition-all after:pointer-events-none after:mt-[6.5px] after:ml-1 after:box-border after:block after:h-1.5 after:w-2.5 after:flex-grow after:rounded-tr-md after:border-t after:border-r after:border-gray-500 peer-invalid:after:border-red-500 after:transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:leading-[3.75] peer-placeholder-shown:text-gray-500 peer-invalid:peer-placeholder-shown:text-red-500 peer-placeholder-shown:before:border-transparent peer-invalid:peer-placeholder-shown:before:border-transparent peer-placeholder-shown:after:border-transparent peer-invalid:peer-placeholder-shown:after:border-transparent peer-focus:text-[11px] peer-focus:leading-tight peer-focus:text-gray-500 peer-invalid:peer-focus:text-red-500 peer-focus:before:border-t-2 peer-focus:before:border-l-2 peer-focus:before:border-gray-500 peer-invalid:peer-focus:before:border-red-500 peer-focus:after:border-t-2 peer-focus:after:border-r-2 peer-focus:after:border-gray-500 peer-invalid:peer-focus:after:border-red-500 peer-disabled:text-transparent peer-disabled:before:border-transparent peer-disabled:after:border-transparent peer-disabled:peer-placeholder-shown:text-blue-gray-500">
+        class="before:content[' '] after:content[' '] pointer-events-none absolute left-0 -top-1.5 flex h-full w-full select-none text-[11px] font-normal leading-tight text-gray-500 peer-invalid:text-red-500 transition-all before:pointer-events-none before:mt-[6.5px] before:mr-1 before:box-border before:block before:h-1.5 before:w-2.5 before:rounded-tl-md before:border-t before:border-l before:border-gray-500 peer-invalid:before:border-red-500 before:transition-all after:pointer-events-none after:mt-[6.5px] after:ml-1 after:box-border after:block after:h-1.5 after:w-2.5 after:flex-grow after:rounded-tr-md after:border-t after:border-r after:border-gray-500 peer-invalid:after:border-red-500 after:transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:leading-[3.75] peer-placeholder-shown:text-gray-500 peer-invalid:peer-placeholder-shown:text-red-500 peer-placeholder-shown:before:border-transparent peer-invalid:peer-placeholder-shown:before:border-transparent peer-placeholder-shown:after:border-transparent peer-invalid:peer-placeholder-shown:after:border-transparent peer-focus:text-[11px] peer-focus:leading-tight peer-focus:text-gray-500 peer-invalid:peer-focus:text-red-500 peer-focus:before:border-t-2 peer-focus:before:border-l-2 peer-focus:before:border-gray-500 peer-invalid:peer-focus:before:border-red-500 peer-focus:after:border-t-2 peer-focus:after:border-r-2 peer-focus:after:border-gray-500 peer-invalid:peer-focus:after:border-red-500 peer-disabled:text-transparent peer-disabled:before:border-transparent peer-disabled:after:border-transparent peer-disabled:peer-placeholder-shown:text-blue-gray-500"
+      >
         Max tracks to save
       </label>
     </div>
   </div>
-  <div class="flex" hx-post="/admin/set-sync/{{.syncId}}" hx-swap="outerHTML" hx-target="#toggle-{{.syncId}}">
+  <!-- <div class="flex" hx-post="/admin/set-sync/{{.syncId}}" hx-swap="outerHTML" hx-target="#toggle-{{.syncId}}"> -->
+  <div class="flex">
     <span class="font-semibold text-xs mr-1">
       Off
     </span>
@@ -101,5 +207,5 @@
     </span>
   </div>
   {{template "partial/sync-manually" .}}
-</div>
+</form>
 {{end}}

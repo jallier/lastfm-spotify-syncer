@@ -158,12 +158,14 @@ func main() {
 			"signedIn": signedIn,
 			"sync": []map[string]any{
 				{
-					"syncId": "weekly",
-					"sync":   conf.Config.Sync.Weekly,
+					"syncId":    "weekly",
+					"sync":      conf.Config.Sync.Weekly.Enabled,
+					"maxTracks": conf.Config.Sync.Weekly.MaxTracks,
 				},
 				{
-					"syncId": "monthly",
-					"sync":   conf.Config.Sync.Monthly,
+					"syncId":    "monthly",
+					"sync":      conf.Config.Sync.Monthly.Enabled,
+					"maxTracks": conf.Config.Sync.Monthly.MaxTracks,
 				},
 			},
 		})
@@ -217,7 +219,7 @@ func main() {
 		c.Redirect(http.StatusFound, "/")
 	})
 
-	if conf.Config.Sync.Monthly || conf.Config.Sync.Weekly {
+	if conf.Config.Sync.Monthly.Enabled || conf.Config.Sync.Weekly.Enabled {
 		log.Info("sync started")
 	} else {
 		log.Info("sync not enabled; pausing jobs")
@@ -227,8 +229,20 @@ func main() {
 	router.Run(":8000")
 }
 
+type SetSyncParams struct {
+	MaxTracks int `form:"max-tracks"`
+}
+
+// Enable or disable the sync for a particular frequency
 func setSync(c *gin.Context) {
 	frequency := c.Param("frequency")
+	var setSyncParams SetSyncParams
+	if err := c.ShouldBind(&setSyncParams); err != nil {
+		log.Error("error reading input", "error", err)
+		c.String(http.StatusInternalServerError, "Error reading MaxTracks parameter")
+		return
+	}
+
 	conf, err := config.LoadConfig(false)
 	if err != nil {
 		log.Error("error loading config", "error", err)
@@ -237,14 +251,13 @@ func setSync(c *gin.Context) {
 	}
 
 	validatedFrequency := strings.ToLower(frequency)
-	syncOn := false
 	switch validatedFrequency {
 	case "weekly":
-		conf.Config.Sync.Weekly = !conf.Config.Sync.Weekly
-		syncOn = conf.Config.Sync.Weekly
+		conf.Config.Sync.Weekly.Enabled = !conf.Config.Sync.Weekly.Enabled
+		conf.Config.Sync.Weekly.MaxTracks = setSyncParams.MaxTracks
 	case "monthly":
-		conf.Config.Sync.Monthly = !conf.Config.Sync.Monthly
-		syncOn = conf.Config.Sync.Monthly
+		conf.Config.Sync.Monthly.Enabled = !conf.Config.Sync.Monthly.Enabled
+		conf.Config.Sync.Monthly.MaxTracks = setSyncParams.MaxTracks
 	default:
 		log.Warn("Invalid value given", "value", frequency)
 		c.String(400, "Invalid value given; must be weekly or monthly")
@@ -252,20 +265,11 @@ func setSync(c *gin.Context) {
 	}
 	config.WriteConfig(conf)
 
-	// We need to track these responses separately here
-	if syncOn {
-		c.HTML(http.StatusOK, "partial/sync-on", gin.H{
-			"syncId": validatedFrequency,
-		})
-	} else {
-		c.HTML(http.StatusOK, "partial/sync-off", gin.H{
-			"syncId": validatedFrequency,
-		})
-	}
+	c.Redirect(http.StatusFound, "/")
 
 	// We need to change scheduler state depending on both settings
 	s := scheduler.GetScheduler()
-	if conf.Config.Sync.Monthly || conf.Config.Sync.Weekly {
+	if conf.Config.Sync.Monthly.Enabled || conf.Config.Sync.Weekly.Enabled {
 		s.PauseJobExecution(false)
 		log.Info("sync started")
 	} else {
