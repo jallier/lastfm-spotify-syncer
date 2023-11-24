@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"example/lastfm-spotify-syncer/config"
 	lastFmApi "example/lastfm-spotify-syncer/lastfm/api"
 	"example/lastfm-spotify-syncer/scheduler"
@@ -10,6 +11,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -83,15 +85,26 @@ func main() {
 	s := scheduler.GetScheduler()
 	s.WaitForScheduleAll()
 
-	// Schedule monthly job - hardcoded for now
-	_, err = s.Every(1).Month(1).Do(func() {
-		log.Info("Running monthly sync job...")
-		sync()
+	// Schedule weekly job - hardcoded for now
+	_, err = s.Every(1).Week().Do(func() {
+		log.Info("Running weekly sync job...")
+		sync("weekly")
 		log.Info("Sync job complete")
 	})
 	if err != nil {
-		log.Error("Error scheduling job", "error", err)
+		log.Error("Error scheduling weekly job", "error", err)
 	}
+
+	// Schedule monthly job - hardcoded for now
+	_, err = s.Every(1).Month(1).Do(func() {
+		log.Info("Running monthly sync job...")
+		sync("monthly")
+		log.Info("Sync job complete")
+	})
+	if err != nil {
+		log.Error("Error scheduling monthly job", "error", err)
+	}
+
 	s.StartAsync()
 
 	// Load the config file here
@@ -180,9 +193,7 @@ func main() {
 	router.GET("/spotify-auth", spotifyCallback)
 
 	// Data endpoints
-	router.GET("/toptracks", handleTopTracks)
-	router.GET("/playlists", getSpotifyPlaylists)
-	router.GET("/sync", handleSync)
+	router.GET("/sync/:frequency", handleSync)
 
 	// admin endpoints
 	router.POST("/admin/set-sync/:frequency", setSync)
@@ -396,44 +407,9 @@ func getPing(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, "PONG")
 }
 
-func handleTopTracks(c *gin.Context) {
-	topTracksData, err := getLastFmTopTracksMonth()
-	if err != nil {
-		log.Error("Unable to fetch from last fm api", "error", err)
-		c.String(http.StatusInternalServerError, "Failed to fetch from lastfm")
-		return
-	}
-
-	log.Info("lastfm data", "data", topTracksData)
-	pretty, err := PrettyStruct(topTracksData)
-	if err != nil {
-		return
-	}
-	log.Info("pretty json", "pretty", pretty)
-}
-
-func getSpotifyPlaylists(c *gin.Context) {
-	// Grab a new access token and update the config with the new values
-	authData, err := spotifyApi.GetAuth()
-	if err != nil {
-		log.Error("Error fetching config", "error", err)
-		c.String(http.StatusInternalServerError, "Error getting spotify playlists")
-		return
-	}
-	log.Info("New spotify tokens", "tokens", authData)
-
-	type Playlists struct {
-		Total int `json:"total"`
-	}
-
-	var playlistsData Playlists
-	spotifyApi.Get(&playlistsData, "/me/playlists", nil)
-
-	log.Info("Playlist data", "data", playlistsData)
-}
-
 func handleSync(c *gin.Context) {
-	err := sync()
+	frequency := c.Param("frequency")
+	err := sync(frequency)
 	if err != nil {
 		log.Error("Error running sync", "error", err)
 		c.String(http.StatusInternalServerError, "Error running sync")
@@ -443,8 +419,25 @@ func handleSync(c *gin.Context) {
 	c.HTML(http.StatusOK, "partial/sync-manually", nil)
 }
 
-func sync() error {
-	topTracksData, err := getLastFmTopTracksMonth()
+func sync(period string) error {
+	var topTracksData *lastFmApi.TopTracks
+	var err error
+
+	conf, err := config.LoadConfig(false)
+	if err != nil {
+		log.Error("Error loading config", "err", err)
+		return err
+	}
+
+	switch period {
+	case "weekly":
+		topTracksData, err = getLastFmTopTracks(period, conf.Config.Sync.Weekly.MaxTracks)
+	case "monthly":
+		topTracksData, err = getLastFmTopTracks(period, conf.Config.Sync.Monthly.MaxTracks)
+	default:
+		log.Error("Invalid frequency given", "freq", period)
+		return errors.New("invalid period given")
+	}
 	if err != nil {
 		log.Error("Unable to fetch from last fm api", "error", err)
 		return err
@@ -482,7 +475,7 @@ func sync() error {
 	log.Info("track ids", "ids", trackIds)
 
 	// Create a new playlist
-	playlistData, err := createSpotifyPlaylist(spotifyUserData.ID)
+	playlistData, err := createSpotifyPlaylist(spotifyUserData.ID, period)
 	if err != nil {
 		log.Error("error creating playlist", "error", err)
 		return err
@@ -517,18 +510,28 @@ func addItemsToSpotifyPlaylist(playlistId string, trackIds []string) (spotifyApi
 	return playlistSnapshot, err
 }
 
-func createSpotifyPlaylist(userId string) (spotifyApi.CreatePlaylist, error) {
-	currentTime := time.Now()
-	firstDayOfCurrentMonth := time.Date(currentTime.Year(), currentTime.Month(), 1, 0, 0, 0, 0, currentTime.Location())
-	lastDayOfPreviousMonth := firstDayOfCurrentMonth.Add(-time.Second)
-	previousMonth := lastDayOfPreviousMonth.Month()
-	year := lastDayOfPreviousMonth.Year()
+func createSpotifyPlaylist(userId string, period string) (spotifyApi.CreatePlaylist, error) {
+	var name string
+	switch period {
+	case "weekly":
+		now := time.Now()
+		sevenDaysAgo := now.AddDate(0, 0, -7)
+		year := sevenDaysAgo.Year()
+		name = fmt.Sprintf("LastFM Top Tracks: %s-%s %d", sevenDaysAgo.Format("Jan 02"), now.Format("Jan 02"), year)
+	case "monthly":
+		currentTime := time.Now()
+		firstDayOfCurrentMonth := time.Date(currentTime.Year(), currentTime.Month(), 1, 0, 0, 0, 0, currentTime.Location())
+		lastDayOfPreviousMonth := firstDayOfCurrentMonth.Add(-time.Second)
+		previousMonth := lastDayOfPreviousMonth.Month()
+		year := lastDayOfPreviousMonth.Year()
+		name = fmt.Sprintf("LastFM Top Tracks: %s %d", previousMonth, year)
+	}
 
 	var playlistData spotifyApi.CreatePlaylist
 
 	url := fmt.Sprintf("/users/%s/playlists", userId)
 	body := spotifyApi.CreatePlaylistData{
-		Name: fmt.Sprintf("LastFM Top Tracks: %s %d", previousMonth, year),
+		Name: name,
 	}
 	err := spotifyApi.Post(&playlistData, url, &body)
 
@@ -543,22 +546,33 @@ func getSpotifyUser() (spotifyApi.User, error) {
 	return userData, err
 }
 
-func getLastFmTopTracksMonth() (lastFmApi.TopTracks, error) {
-	var topTracksData lastFmApi.TopTracks
+func getLastFmTopTracks(period string, limit int) (*lastFmApi.TopTracks, error) {
+	var lastFmPeriod string
+	switch period {
+	case "weekly":
+		lastFmPeriod = "7day"
+	case "monthly":
+		lastFmPeriod = "1month"
+	default:
+		log.Error("Invalid period given for lastfm top tracks", "period", period)
+		return nil, errors.New("invalid period given")
+	}
 
 	params := map[string]string{
 		"method": "user.getTopTracks",
+		// TODO: Don't use my user lol
 		"user":   "fuzzycut1",
-		"period": "1month",
-		"limit":  "10",
+		"period": lastFmPeriod,
+		"limit":  strconv.Itoa(limit),
 	}
 
+	var topTracksData lastFmApi.TopTracks
 	err := lastFmApi.Get(
 		&topTracksData,
 		params,
 	)
 
-	return topTracksData, err
+	return &topTracksData, err
 }
 
 // Pretty print a struct
