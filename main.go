@@ -167,18 +167,17 @@ func main() {
 		c.Redirect(http.StatusFound, "/")
 	})
 
-	err = scheduler.SetupSchedule()
+	jobTags := [2]string{}
+	if conf.Config.Sync.Weekly.Enabled {
+		jobTags[0] = "weekly"
+	}
+	if conf.Config.Sync.Monthly.Enabled {
+		jobTags[1] = "monthly"
+	}
+
+	err = scheduler.SetupSchedule(jobTags[:])
 	if err != nil {
 		log.Error("Error setting up scheduler, jobs will not fire", "err", err)
-	} else {
-		log.Info("Scheduler setup")
-		if !conf.Config.Sync.Weekly.Enabled {
-			scheduler.StopJob("weekly")
-			log.Info("Weekly sync job disabled based on config")
-		} else if !conf.Config.Sync.Monthly.Enabled {
-			scheduler.StopJob("monthly")
-			log.Info("Monthly sync job disabled based on config")
-		}
 	}
 
 	router.Run(":8000")

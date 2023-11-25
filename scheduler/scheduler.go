@@ -78,6 +78,7 @@ func StopJob(tag string) error {
 		return err
 	}
 
+	log.Info("Stopped job", "tag", tag)
 	return nil
 }
 
@@ -112,16 +113,25 @@ func startMonthlyJob(s *gocron.Scheduler) error {
 }
 
 // Setup the scheduler and jobs for use later
-func SetupSchedule() error {
-	// setup the scheduler
+// The jobs to enable must be given by passing in a slice of the tags to enable.
+// These values must be 'weekly' or 'monthly'. Other values will be ignored. Duplicates will be ignored
+func SetupSchedule(jobTags []string) error {
 	s := GetScheduler()
 	s.WaitForScheduleAll()
+	s.TagsUnique()
 
-	// Schedule weekly job - hardcoded for now
-	startWeeklyJob(s)
-
-	// Schedule monthly job - hardcoded for now
-	startMonthlyJob(s)
+	var err error
+	for _, tag := range jobTags {
+		switch tag {
+		case "weekly":
+			err = startWeeklyJob(s)
+		case "monthly":
+			err = startMonthlyJob(s)
+		}
+	}
+	if err != nil {
+		return err
+	}
 
 	s.StartAsync()
 	return nil
