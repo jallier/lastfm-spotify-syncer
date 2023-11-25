@@ -22,6 +22,7 @@ import (
 	"golang.org/x/text/language"
 )
 
+// Template function - used to convert a string to Title Case
 func toTitle(input string) string {
 	caser := cases.Title(language.English)
 	val := caser.String(input)
@@ -289,6 +290,7 @@ func lastFmCallback(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/")
 }
 
+// Handles the auth callback for spotify
 func spotifyCallback(c *gin.Context) {
 	type SpotifyCallbackData struct {
 		Code  string `form:"code"`
@@ -326,6 +328,7 @@ func spotifyCallback(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/")
 }
 
+// Generates a link to authenticate with lastfm
 func authenticateLastFM(c *gin.Context) {
 	conf, err := config.LoadConfig(false)
 	if err != nil {
@@ -339,6 +342,7 @@ func authenticateLastFM(c *gin.Context) {
 	c.Redirect(http.StatusFound, link)
 }
 
+// generates a link to authenticate with spotify
 func authenticateSpotify(c *gin.Context) {
 	conf, err := config.LoadConfig(false)
 	if err != nil {
@@ -364,10 +368,12 @@ func authenticateSpotify(c *gin.Context) {
 	c.Redirect(http.StatusFound, fullSpotifyURL)
 }
 
+// Simple ping function
 func getPing(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, "PONG")
 }
 
+// Handle syncing a given period
 func handleSync(c *gin.Context) {
 	frequency := c.Param("frequency")
 	err := sync(frequency)
@@ -380,6 +386,7 @@ func handleSync(c *gin.Context) {
 	c.HTML(http.StatusOK, "partial/sync-manually", nil)
 }
 
+// Sync the lastfm track data into a spotify playlist
 func sync(period string) error {
 	var topTracksData *lastFmApi.TopTracks
 	var err error
@@ -435,8 +442,24 @@ func sync(period string) error {
 	}
 	log.Info("track ids", "ids", trackIds)
 
+	var playlistName string
+	switch period {
+	case "weekly":
+		now := time.Now()
+		sevenDaysAgo := now.AddDate(0, 0, -7)
+		year := sevenDaysAgo.Year()
+		playlistName = fmt.Sprintf("LastFM Top Tracks: %s-%s %d", sevenDaysAgo.Format("Jan 02"), now.Format("Jan 02"), year)
+	case "monthly":
+		currentTime := time.Now()
+		firstDayOfCurrentMonth := time.Date(currentTime.Year(), currentTime.Month(), 1, 0, 0, 0, 0, currentTime.Location())
+		lastDayOfPreviousMonth := firstDayOfCurrentMonth.Add(-time.Second)
+		previousMonth := lastDayOfPreviousMonth.Month()
+		year := lastDayOfPreviousMonth.Year()
+		playlistName = fmt.Sprintf("LastFM Top Tracks: %s %d", previousMonth, year)
+	}
+
 	// Create a new playlist
-	playlistData, err := createSpotifyPlaylist(spotifyUserData.ID, period)
+	playlistData, err := createSpotifyPlaylist(spotifyUserData.ID, playlistName)
 	if err != nil {
 		log.Error("error creating playlist", "error", err)
 		return err
@@ -454,6 +477,7 @@ func sync(period string) error {
 	return nil
 }
 
+// Add spotify tracks to a spotify playlist
 func addItemsToSpotifyPlaylist(playlistId string, trackIds []string) (spotifyApi.AddPlaylistTracks, error) {
 	var playlistSnapshot spotifyApi.AddPlaylistTracks
 
@@ -471,23 +495,8 @@ func addItemsToSpotifyPlaylist(playlistId string, trackIds []string) (spotifyApi
 	return playlistSnapshot, err
 }
 
-func createSpotifyPlaylist(userId string, period string) (spotifyApi.CreatePlaylist, error) {
-	var name string
-	switch period {
-	case "weekly":
-		now := time.Now()
-		sevenDaysAgo := now.AddDate(0, 0, -7)
-		year := sevenDaysAgo.Year()
-		name = fmt.Sprintf("LastFM Top Tracks: %s-%s %d", sevenDaysAgo.Format("Jan 02"), now.Format("Jan 02"), year)
-	case "monthly":
-		currentTime := time.Now()
-		firstDayOfCurrentMonth := time.Date(currentTime.Year(), currentTime.Month(), 1, 0, 0, 0, 0, currentTime.Location())
-		lastDayOfPreviousMonth := firstDayOfCurrentMonth.Add(-time.Second)
-		previousMonth := lastDayOfPreviousMonth.Month()
-		year := lastDayOfPreviousMonth.Year()
-		name = fmt.Sprintf("LastFM Top Tracks: %s %d", previousMonth, year)
-	}
-
+// Create a spotify playlist for the given user with the given name
+func createSpotifyPlaylist(userId string, name string) (spotifyApi.CreatePlaylist, error) {
 	var playlistData spotifyApi.CreatePlaylist
 
 	url := fmt.Sprintf("/users/%s/playlists", userId)
@@ -499,6 +508,7 @@ func createSpotifyPlaylist(userId string, period string) (spotifyApi.CreatePlayl
 	return playlistData, err
 }
 
+// Get the user data for the currently authenticated spotify user
 func getSpotifyUser() (spotifyApi.User, error) {
 	var userData spotifyApi.User
 
@@ -507,6 +517,7 @@ func getSpotifyUser() (spotifyApi.User, error) {
 	return userData, err
 }
 
+// Get the lastFM top tracks for a given period
 func getLastFmTopTracks(period string, limit int, username string) (*lastFmApi.TopTracks, error) {
 	var lastFmPeriod string
 	switch period {
