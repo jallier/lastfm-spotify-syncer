@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"example/lastfm-spotify-syncer/config"
 	lastFmApi "example/lastfm-spotify-syncer/lastfm/api"
@@ -22,45 +21,6 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
-
-func wrap(syncId string, sync bool) map[string]interface{} {
-	log.Debug("Wrap called")
-	return map[string]interface{}{
-		"syncId": syncId,
-		"sync":   sync,
-	}
-}
-
-func wrapAny(input ...string) map[string]interface{} {
-	log.Debug("wrapAny called", "input", input)
-
-	output := make(map[string]interface{})
-	for _, v := range input {
-		output[v] = v
-	}
-
-	log.Debug("wrapAny called", "output", output)
-	return output
-}
-
-func unflatten(input ...any) map[string]interface{} {
-	log.Debug("unflatten", "input", input)
-
-	output := make(map[string]interface{})
-	var firstVal any
-	for i, v := range input {
-		if i%2 == 0 {
-			firstVal = v
-		} else {
-			if value, ok := firstVal.(string); ok {
-				output[value] = v
-			}
-		}
-	}
-
-	log.Debug("unflatten", "output", output)
-	return output
-}
 
 func toTitle(input string) string {
 	caser := cases.Title(language.English)
@@ -120,10 +80,7 @@ func main() {
 		router.SetTrustedProxies([]string{"127.0.0.1"})
 	}
 	router.SetFuncMap(template.FuncMap{
-		"wrap":      wrap,
-		"wrapAny":   wrapAny,
-		"title":     toTitle,
-		"unflatten": unflatten,
+		"title": toTitle,
 	})
 	router.LoadHTMLGlob("templates/**/*.tmpl")
 	router.Static("/static", "./static")
@@ -247,19 +204,18 @@ func main() {
 	router.Run(":8000")
 }
 
-type SetSyncParams struct {
-	MaxTracks int `form:"max-tracks"`
-}
-
 // Enable or disable the sync for a particular frequency
 func setSync(c *gin.Context) {
-	frequency := c.Param("frequency")
+	type SetSyncParams struct {
+		MaxTracks int `form:"max-tracks"`
+	}
 	var setSyncParams SetSyncParams
 	if err := c.ShouldBind(&setSyncParams); err != nil {
 		log.Error("error reading input", "error", err)
 		c.String(http.StatusInternalServerError, "Error reading MaxTracks parameter")
 		return
 	}
+	frequency := c.Param("frequency")
 
 	conf, err := config.LoadConfig(false)
 	if err != nil {
@@ -296,12 +252,11 @@ func setSync(c *gin.Context) {
 	}
 }
 
-type LastFmCallbackData struct {
-	Token string `form:"token"`
-}
-
 // Handles the authorization callback from lastfm
 func lastFmCallback(c *gin.Context) {
+	type LastFmCallbackData struct {
+		Token string `form:"token"`
+	}
 	var lastFmCallbackData LastFmCallbackData
 
 	err := c.ShouldBind(&lastFmCallbackData)
@@ -334,12 +289,11 @@ func lastFmCallback(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/")
 }
 
-type SpotifyCallbackData struct {
-	Code  string `form:"code"`
-	State string `form:"state"`
-}
-
 func spotifyCallback(c *gin.Context) {
+	type SpotifyCallbackData struct {
+		Code  string `form:"code"`
+		State string `form:"state"`
+	}
 	var spotifyCallbackData SpotifyCallbackData
 
 	err := c.ShouldBind(&spotifyCallbackData)
@@ -579,15 +533,6 @@ func getLastFmTopTracks(period string, limit int, username string) (*lastFmApi.T
 	)
 
 	return &topTracksData, err
-}
-
-// Pretty print a struct
-func PrettyStruct(data interface{}) (string, error) {
-	val, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return string(val), nil
 }
 
 // Generate a random string of given length
