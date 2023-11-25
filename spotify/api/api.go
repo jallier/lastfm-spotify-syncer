@@ -250,3 +250,43 @@ func Post[T any, B any](data *T, endpoint string, body *B) error {
 	// Decode the JSON response into the map
 	return json.NewDecoder(resp.Body).Decode(&data)
 }
+
+// Add spotify tracks to a spotify playlist
+func AddItemsToPlaylist(playlistId string, trackIds []string) (*AddPlaylistTracksReturnData, error) {
+	var playlistSnapshot AddPlaylistTracksReturnData
+
+	formattedTracks := make([]string, len(trackIds))
+	for i, v := range trackIds {
+		formattedTracks[i] = "spotify:track:" + v
+	}
+
+	url := fmt.Sprintf("/playlists/%s/tracks", playlistId)
+	body := AddPlaylistTracksInputData{
+		Uris: formattedTracks,
+	}
+	err := Post(&playlistSnapshot, url, &body)
+
+	return &playlistSnapshot, err
+}
+
+// Create a spotify playlist for the given user with the given name
+func CreatePlaylist(userId string, name string) (*CreatePlaylistReturnData, error) {
+	var playlistData CreatePlaylistReturnData
+
+	url := fmt.Sprintf("/users/%s/playlists", userId)
+	body := CreatePlaylistInputData{
+		Name: name,
+	}
+	err := Post(&playlistData, url, &body)
+
+	return &playlistData, err
+}
+
+// Get the user data for the currently authenticated spotify user
+func GetUser() (*User, error) {
+	var userData User
+
+	err := Get(&userData, "/me", nil)
+
+	return &userData, err
+}

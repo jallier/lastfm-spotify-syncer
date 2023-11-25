@@ -355,7 +355,7 @@ type User struct {
 	URI     string `json:"uri"`
 }
 
-type CreatePlaylist struct {
+type CreatePlaylistReturnData struct {
 	Collaborative bool   `json:"collaborative"`
 	Description   string `json:"description"`
 	ExternalUrls  struct {
@@ -501,17 +501,17 @@ type CreatePlaylist struct {
 	URI  string `json:"uri"`
 }
 
-type CreatePlaylistData struct {
+type CreatePlaylistInputData struct {
 	Name        string  `json:"name"`
 	Description *string `json:"description"`
 	Public      *bool   `json:"public"`
 }
 
-type AddPlaylistTracks struct {
+type AddPlaylistTracksReturnData struct {
 	SnapshotID string `json:"snapshot_id"`
 }
 
-type AddPlaylistTracksData struct {
+type AddPlaylistTracksInputData struct {
 	Uris     []string `json:"uris"`
 	Position *int     `json:"position"`
 }

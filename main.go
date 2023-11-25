@@ -1,16 +1,15 @@
 package main
 
 import (
-	"errors"
 	"example/lastfm-spotify-syncer/config"
 	lastFmApi "example/lastfm-spotify-syncer/lastfm/api"
 	"example/lastfm-spotify-syncer/scheduler"
 	spotifyApi "example/lastfm-spotify-syncer/spotify/api"
+	"example/lastfm-spotify-syncer/sync"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -26,7 +25,6 @@ import (
 func toTitle(input string) string {
 	caser := cases.Title(language.English)
 	val := caser.String(input)
-	log.Debug("toTitle", "val", val)
 	return val
 }
 
@@ -41,32 +39,6 @@ func main() {
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
-
-	// setup the scheduler
-	s := scheduler.GetScheduler()
-	s.WaitForScheduleAll()
-
-	// Schedule weekly job - hardcoded for now
-	_, err = s.Every(1).Week().Do(func() {
-		log.Info("Running weekly sync job...")
-		sync("weekly")
-		log.Info("Sync job complete")
-	})
-	if err != nil {
-		log.Error("Error scheduling weekly job", "error", err)
-	}
-
-	// Schedule monthly job - hardcoded for now
-	_, err = s.Every(1).Month(1).Do(func() {
-		log.Info("Running monthly sync job...")
-		sync("monthly")
-		log.Info("Sync job complete")
-	})
-	if err != nil {
-		log.Error("Error scheduling monthly job", "error", err)
-	}
-
-	s.StartAsync()
 
 	// Load the config file here
 	conf, err := config.LoadConfig(false)
@@ -195,11 +167,18 @@ func main() {
 		c.Redirect(http.StatusFound, "/")
 	})
 
-	if conf.Config.Sync.Monthly.Enabled || conf.Config.Sync.Weekly.Enabled {
-		log.Info("sync started")
+	err = scheduler.SetupSchedule()
+	if err != nil {
+		log.Error("Error setting up scheduler, jobs will not fire", "err", err)
 	} else {
-		log.Info("sync not enabled; pausing jobs")
-		s.PauseJobExecution(true)
+		log.Info("Scheduler setup")
+		if conf.Config.Sync.Monthly.Enabled || conf.Config.Sync.Weekly.Enabled {
+			log.Info("sync scheduler enabled")
+			scheduler.StartScheduler()
+		} else {
+			log.Info("sync scheduler not enabled; pausing jobs")
+			scheduler.StopScheduler()
+		}
 	}
 
 	router.Run(":8000")
@@ -243,12 +222,11 @@ func setSync(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/")
 
 	// We need to change scheduler state depending on both settings
-	s := scheduler.GetScheduler()
 	if conf.Config.Sync.Monthly.Enabled || conf.Config.Sync.Weekly.Enabled {
-		s.PauseJobExecution(false)
+		scheduler.StartScheduler()
 		log.Info("sync started")
 	} else {
-		s.PauseJobExecution(true)
+		scheduler.StopScheduler()
 		log.Info("sync stopped")
 	}
 }
@@ -376,7 +354,7 @@ func getPing(c *gin.Context) {
 // Handle syncing a given period
 func handleSync(c *gin.Context) {
 	frequency := c.Param("frequency")
-	err := sync(frequency)
+	err := sync.Sync(frequency)
 	if err != nil {
 		log.Error("Error running sync", "error", err)
 		c.String(http.StatusInternalServerError, "Error running sync")
@@ -384,166 +362,6 @@ func handleSync(c *gin.Context) {
 	}
 
 	c.HTML(http.StatusOK, "partial/sync-manually", nil)
-}
-
-// Sync the lastfm track data into a spotify playlist
-func sync(period string) error {
-	var topTracksData *lastFmApi.TopTracks
-	var err error
-
-	conf, err := config.LoadConfig(false)
-	if err != nil {
-		log.Error("Error loading config", "err", err)
-		return err
-	}
-
-	switch period {
-	case "weekly":
-		topTracksData, err = getLastFmTopTracks(period, conf.Config.Sync.Weekly.MaxTracks, conf.Auth.LastFM.Username)
-	case "monthly":
-		topTracksData, err = getLastFmTopTracks(period, conf.Config.Sync.Monthly.MaxTracks, conf.Auth.LastFM.Username)
-	default:
-		log.Error("Invalid frequency given", "freq", period)
-		return errors.New("invalid period given")
-	}
-	if err != nil {
-		log.Error("Unable to fetch from last fm api", "error", err)
-		return err
-	}
-	spotifyUserData, err := getSpotifyUser()
-	if err != nil {
-		log.Error("Unable to fetch from spotify api", "error", err)
-		return err
-	}
-
-	var trackIds []string
-
-	// Iterate and search for each track
-	// TODO: concurrently?
-	for _, v := range topTracksData.Toptracks.Track {
-		trackName := v.Name
-		artistName := v.Artist.Name
-		log.Info("track data", "name", trackName, "artist", artistName)
-
-		var searchData spotifyApi.Search
-		searchQuery := fmt.Sprintf("artist: \"%s\" track: \"%s\"", artistName, trackName)
-		err := spotifyApi.Get(&searchData, "/search", map[string]string{
-			"q":     searchQuery,
-			"type":  "track",
-			"limit": "1",
-		})
-
-		if err != nil {
-			log.Error("error searching spotify", "error", err)
-			continue
-		}
-
-		trackIds = append(trackIds, searchData.Tracks.Items[0].ID)
-	}
-	log.Info("track ids", "ids", trackIds)
-
-	var playlistName string
-	switch period {
-	case "weekly":
-		now := time.Now()
-		sevenDaysAgo := now.AddDate(0, 0, -7)
-		year := sevenDaysAgo.Year()
-		playlistName = fmt.Sprintf("LastFM Top Tracks: %s-%s %d", sevenDaysAgo.Format("Jan 02"), now.Format("Jan 02"), year)
-	case "monthly":
-		currentTime := time.Now()
-		firstDayOfCurrentMonth := time.Date(currentTime.Year(), currentTime.Month(), 1, 0, 0, 0, 0, currentTime.Location())
-		lastDayOfPreviousMonth := firstDayOfCurrentMonth.Add(-time.Second)
-		previousMonth := lastDayOfPreviousMonth.Month()
-		year := lastDayOfPreviousMonth.Year()
-		playlistName = fmt.Sprintf("LastFM Top Tracks: %s %d", previousMonth, year)
-	}
-
-	// Create a new playlist
-	playlistData, err := createSpotifyPlaylist(spotifyUserData.ID, playlistName)
-	if err != nil {
-		log.Error("error creating playlist", "error", err)
-		return err
-	}
-	log.Info("created playlist", "playlist", playlistData)
-
-	// Add the tracks to the new playlist by uri
-	_, err = addItemsToSpotifyPlaylist(playlistData.ID, trackIds)
-	if err != nil {
-		log.Error("error adding items to playlist playlist", "error", err)
-		return err // TODO: try delete the blank playlist here
-	}
-
-	log.Info("Populated playlist!")
-	return nil
-}
-
-// Add spotify tracks to a spotify playlist
-func addItemsToSpotifyPlaylist(playlistId string, trackIds []string) (spotifyApi.AddPlaylistTracks, error) {
-	var playlistSnapshot spotifyApi.AddPlaylistTracks
-
-	formattedTracks := make([]string, len(trackIds))
-	for i, v := range trackIds {
-		formattedTracks[i] = "spotify:track:" + v
-	}
-
-	url := fmt.Sprintf("/playlists/%s/tracks", playlistId)
-	body := spotifyApi.AddPlaylistTracksData{
-		Uris: formattedTracks,
-	}
-	err := spotifyApi.Post(&playlistSnapshot, url, &body)
-
-	return playlistSnapshot, err
-}
-
-// Create a spotify playlist for the given user with the given name
-func createSpotifyPlaylist(userId string, name string) (spotifyApi.CreatePlaylist, error) {
-	var playlistData spotifyApi.CreatePlaylist
-
-	url := fmt.Sprintf("/users/%s/playlists", userId)
-	body := spotifyApi.CreatePlaylistData{
-		Name: name,
-	}
-	err := spotifyApi.Post(&playlistData, url, &body)
-
-	return playlistData, err
-}
-
-// Get the user data for the currently authenticated spotify user
-func getSpotifyUser() (spotifyApi.User, error) {
-	var userData spotifyApi.User
-
-	err := spotifyApi.Get(&userData, "/me", nil)
-
-	return userData, err
-}
-
-// Get the lastFM top tracks for a given period
-func getLastFmTopTracks(period string, limit int, username string) (*lastFmApi.TopTracks, error) {
-	var lastFmPeriod string
-	switch period {
-	case "weekly":
-		lastFmPeriod = "7day"
-	case "monthly":
-		lastFmPeriod = "1month"
-	default:
-		log.Error("Invalid period given for lastfm top tracks", "period", period)
-		return nil, errors.New("invalid period given")
-	}
-
-	params := map[string]string{
-		"method": "user.getTopTracks",
-		"user":   username,
-		"period": lastFmPeriod,
-		"limit":  strconv.Itoa(limit),
-	}
-
-	var topTracksData lastFmApi.TopTracks
-	err := lastFmApi.Get(
-		&topTracksData,
-		params,
-	)
-
-	return &topTracksData, err
 }
 
 // Generate a random string of given length

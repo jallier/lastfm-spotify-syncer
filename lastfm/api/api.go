@@ -4,12 +4,14 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"example/lastfm-spotify-syncer/config"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 
 	"github.com/charmbracelet/log"
 )
@@ -175,4 +177,33 @@ func encodeLastFmCall(sortedParams string) string {
 	hashHex := hex.EncodeToString(hash[:])
 
 	return hashHex
+}
+
+// Get the lastFM top tracks for a given period
+func GetTopTracks(period string, limit int, username string) (*TopTracks, error) {
+	var lastFmPeriod string
+	switch period {
+	case "weekly":
+		lastFmPeriod = "7day"
+	case "monthly":
+		lastFmPeriod = "1month"
+	default:
+		log.Error("Invalid period given for lastfm top tracks", "period", period)
+		return nil, errors.New("invalid period given")
+	}
+
+	params := map[string]string{
+		"method": "user.getTopTracks",
+		"user":   username,
+		"period": lastFmPeriod,
+		"limit":  strconv.Itoa(limit),
+	}
+
+	var topTracksData TopTracks
+	err := Get(
+		&topTracksData,
+		params,
+	)
+
+	return &topTracksData, err
 }
