@@ -172,12 +172,12 @@ func main() {
 		log.Error("Error setting up scheduler, jobs will not fire", "err", err)
 	} else {
 		log.Info("Scheduler setup")
-		if conf.Config.Sync.Monthly.Enabled || conf.Config.Sync.Weekly.Enabled {
-			log.Info("sync scheduler enabled")
-			scheduler.StartScheduler()
-		} else {
-			log.Info("sync scheduler not enabled; pausing jobs")
-			scheduler.StopScheduler()
+		if !conf.Config.Sync.Weekly.Enabled {
+			scheduler.StopJob("weekly")
+			log.Info("Weekly sync job disabled based on config")
+		} else if !conf.Config.Sync.Monthly.Enabled {
+			scheduler.StopJob("monthly")
+			log.Info("Monthly sync job disabled based on config")
 		}
 	}
 
@@ -209,9 +209,19 @@ func setSync(c *gin.Context) {
 	case "weekly":
 		conf.Config.Sync.Weekly.Enabled = !conf.Config.Sync.Weekly.Enabled
 		conf.Config.Sync.Weekly.MaxTracks = setSyncParams.MaxTracks
+		if conf.Config.Sync.Weekly.Enabled {
+			scheduler.StartJob("weekly")
+		} else {
+			scheduler.StopJob("weekly")
+		}
 	case "monthly":
 		conf.Config.Sync.Monthly.Enabled = !conf.Config.Sync.Monthly.Enabled
 		conf.Config.Sync.Monthly.MaxTracks = setSyncParams.MaxTracks
+		if conf.Config.Sync.Monthly.Enabled {
+			scheduler.StartJob("monthly")
+		} else {
+			scheduler.StopJob("monthly")
+		}
 	default:
 		log.Warn("Invalid value given", "value", frequency)
 		c.String(400, "Invalid value given; must be weekly or monthly")
@@ -220,15 +230,6 @@ func setSync(c *gin.Context) {
 	config.WriteConfig(conf)
 
 	c.Redirect(http.StatusFound, "/")
-
-	// We need to change scheduler state depending on both settings
-	if conf.Config.Sync.Monthly.Enabled || conf.Config.Sync.Weekly.Enabled {
-		scheduler.StartScheduler()
-		log.Info("sync started")
-	} else {
-		scheduler.StopScheduler()
-		log.Info("sync stopped")
-	}
 }
 
 // Handles the authorization callback from lastfm
@@ -351,7 +352,7 @@ func getPing(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, "PONG")
 }
 
-// Handle syncing a given period
+// Handle manually syncing a given period
 func handleSync(c *gin.Context) {
 	frequency := c.Param("frequency")
 	err := sync.Sync(frequency)
