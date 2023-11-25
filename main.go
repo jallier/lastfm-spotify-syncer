@@ -167,6 +167,7 @@ func main() {
 		c.Redirect(http.StatusFound, "/")
 	})
 
+	// Setup scheduler
 	jobTags := [2]string{}
 	if conf.Config.Sync.Weekly.Enabled {
 		jobTags[0] = "weekly"

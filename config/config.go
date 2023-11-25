@@ -27,6 +27,11 @@ type SpotifyAuthData struct {
 	ClientSecret string    `json:"client_secret"`
 }
 
+type Period struct {
+	Enabled   bool `json:"enabled"`
+	MaxTracks int  `json:"max_tracks"`
+}
+
 type Config struct {
 	Auth struct {
 		LastFM  LastFMAuthData  `json:"last_fm"`
@@ -34,14 +39,8 @@ type Config struct {
 	} `json:"auth"`
 	Config struct {
 		Sync struct {
-			Weekly struct {
-				Enabled   bool `json:"enabled"`
-				MaxTracks int  `json:"max_tracks"`
-			} `json:"weekly"`
-			Monthly struct {
-				Enabled   bool `json:"enabled"`
-				MaxTracks int  `json:"max_tracks"`
-			} `json:"monthly"`
+			Weekly  Period `json:"weekly"`
+			Monthly Period `json:"monthly"`
 		} `json:"sync"`
 	} `json:"config"`
 }
