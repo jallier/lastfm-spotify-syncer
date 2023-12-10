@@ -11,7 +11,6 @@ COPY . .
 RUN go build -v -o /usr/local/bin/app .
 
 # tailwind
-
 FROM node:21-alpine3.18 as tailwind-builder
 
 WORKDIR /usr/src/app
