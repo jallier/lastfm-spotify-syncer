@@ -198,6 +198,8 @@ func Get[T any](data *T, endpoint string, params map[string]string) error {
 	// Check the response status code
 	if resp.StatusCode != http.StatusOK {
 		log.Warn("failed", "error code", resp.StatusCode)
+		errorMessage := fmt.Sprintf("request failed with code: %d", resp.StatusCode)
+		return errors.New(errorMessage)
 	}
 
 	// Decode the JSON response into the map

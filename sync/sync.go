@@ -6,10 +6,21 @@ import (
 	lastFmApi "example/lastfm-spotify-syncer/lastfm/api"
 	spotifyApi "example/lastfm-spotify-syncer/spotify/api"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/charmbracelet/log"
 )
+
+// transformStringForSpotify removes "'" "{" and "}" from a given string, as Spotify can't handle them in the track name when searching
+func transformStringForSpotify(str string) string {
+	// Define the pattern to match ', { and }
+	re := regexp.MustCompile(`['{}]`)
+	// Replace the matched patterns with an empty string
+	result := re.ReplaceAllString(str, "")
+
+	return result
+}
 
 // Sync the lastfm track data into a spotify playlist
 func Sync(period string) error {
@@ -52,6 +63,8 @@ func Sync(period string) error {
 
 		var searchData spotifyApi.Search
 		searchQuery := fmt.Sprintf("artist: \"%s\" track: \"%s\"", artistName, trackName)
+		searchQuery = transformStringForSpotify(searchQuery)
+		log.Debug("search query string", "query", searchQuery)
 		err := spotifyApi.Get(&searchData, "/search", map[string]string{
 			"q":     searchQuery,
 			"type":  "track",
@@ -63,7 +76,12 @@ func Sync(period string) error {
 			continue
 		}
 
-		trackIds = append(trackIds, searchData.Tracks.Items[0].ID)
+		var items = searchData.Tracks.Items
+		if len(items) == 0 {
+			log.Warn("Spotify search returned no results for this track")
+			continue
+		}
+		trackIds = append(trackIds, items[0].ID)
 	}
 	log.Info("track ids", "ids", trackIds)
 
